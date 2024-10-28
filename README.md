@@ -28,7 +28,7 @@ excel_sage.create_workbook(workbook_name="new_excel.xlsx", overwrite_if_exists=T
 #### Fetching Sheet Data
 ```py
 # Fetch data from a specific sheet
-data = excel_sage.fetch_sheet_data(sheet_name="Sheet1", output_format="dataframe")
+data = excel_sage.fetch_sheet_data(sheet_name="Sheet1", starting_cell="D6", output_format="dataframe")
 ```
 
 #### Working with Sheets
@@ -55,10 +55,10 @@ value = excel_sage.get_cell_value(cell_name="B2", sheet_name="Sheet1")
 #### Managing Rows and Columns
 ```py
 # Append a row to the sheet
-excel_sage.append_row(row_data=["New Row Data"], sheet_name="Sheet1")
+excel_sage.append_row(row_data=["Mark", "Engineer", 36], sheet_name="Sheet1")
 
 # Insert a column at a specific position
-excel_sage.insert_column(col_data=["Col Data"], col_index=2, sheet_name="Sheet1")
+excel_sage.insert_column(col_data=["Name", "John", "Dean", "Sam"], col_index=2, sheet_name="Sheet1")
 
 # Delete a row
 excel_sage.delete_row(row_index=5, sheet_name="Sheet1")
@@ -67,7 +67,7 @@ excel_sage.delete_row(row_index=5, sheet_name="Sheet1")
 #### Formatting Cells
 ```py
 # Format cell A1 in Sheet1
-excel_sage.format_cell(cell_name="A1", font_size=12, font_color="FF0000", sheet_name="Sheet1", bold=True, bg_color="FFFF00")
+excel_sage.format_cell(cell_name="A1", font_size=12, font_color="#FF0000", sheet_name="Sheet1", bold=True, bg_color="#FFFF00")
 ```
 
 #### Searching and Replacing
@@ -82,10 +82,10 @@ excel_sage.find_and_replace(old_value="old_term", new_value="new_term", sheet_na
 #### Merging and Comparing Excel Files
 ```py
 # Merge multiple Excel files
-excel_sage.merge_excels(file_list=["file1.xlsx", "file2.xlsx"], output_filename="merged_output.xlsx", merge_type="vertical")
+excel_sage.merge_excels(file_list=["file1.xlsx", "file2.xlsx"], output_filename="merged_output.xlsx", merge_type="multiple_sheets")
 
 # Compare two Excel files
-comparison = excel_sage.compare_excels(source_excel="file1.xlsx", target_excel="file2.xlsx", source_excel_config={}, target_excel_config={})
+comparison = excel_sage.compare_excels(source_excel="file1.xlsx", target_excel="file2.xlsx", source_excel_config={'sheet_name': 'Sheet1','columns': ['Name', 'Age']}, target_excel_config={'sheet_name': 'Sheet2', 'starting_cell': 'D8', 'columns': ['Name', 'Age']})
 ```
 
 #### Security Features
@@ -100,7 +100,7 @@ excel_sage.unprotect_workbook(password="mypassword", unprotect_sheets=True)
 #### CSV Export
 ```py
 # Export a sheet to CSV
-excel_sage.export_to_csv(filename="source.xlsx", sheet_name="Sheet1", output_filename="output.c
+excel_sage.export_to_csv(filename="source.xlsx", sheet_name="Sheet1", output_filename="output.csv
 ```
 
 ## Robot Framework Usage
@@ -202,7 +202,7 @@ Delete a Column
 ```robot
 *** Test Cases ***
 Format a Cell
-    Format Cell    A1    font_size=14    font_color=0000FF    sheet_name=Sheet1    bold=True    italic=True    bg_color=FFFFAA
+    Format Cell    A1    font_size=14    font_color=#0000FF    sheet_name=Sheet1    bold=True    italic=True    bg_color=#FFFFAA
 ```
 
 #### Searching and Replacing
@@ -220,10 +220,10 @@ Find and Replace a Value
 ```robot
 *** Test Cases ***
 Merge Excel Files
-    Merge Excels    file_list=[file1.xlsx, file2.xlsx]    output_filename=merged_output.xlsx    merge_type=vertical
+    Merge Excels    file_list=[file1.xlsx, file2.xlsx]    output_filename=merged_output.xlsx    merge_type=sheet_wise
 
 Compare Two Excel Files
-    ${comparison}=    Compare Excels    source_excel=file1.xlsx    target_excel=file2.xlsx
+    ${comparison}    Compare Excels    source_excel=file1.xlsx    target_excel=file2.xlsx
     Log    ${comparison}
 ```
 
