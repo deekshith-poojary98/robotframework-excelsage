@@ -349,7 +349,7 @@ class ExcelSage:
         self.__argument_type_checker({
                 "sheet_name": [sheet_name, str, None],
                 "sheet_data": [sheet_data, list, None],
-                "sheet_pos": [sheet_pos, int]
+                "sheet_pos": [sheet_pos, int, None]
             })
 
         if sheet_name in self.active_workbook.sheetnames:
@@ -420,10 +420,14 @@ class ExcelSage:
                                       "ignore_empty_rows": [ignore_empty_rows, bool],
                                       "starting_cell": [starting_cell, str]})
 
+
+        if output_format.lower().strip() not in ['list', 'dict', 'dataframe']:
+            raise ValueError("Invalid output format. Use 'list', 'dict', or 'dataframe'.")
+
         try:
             range_boundaries(starting_cell)
-        except ValueError as e:
-            raise InvalidCellRangeError(e)
+        except ValueError:
+            raise InvalidCellAddressError(starting_cell)
 
         sheet = self.active_workbook[sheet_name]
         data = sheet[starting_cell:sheet.dimensions.split(':')[-1]]
@@ -457,8 +461,6 @@ class ExcelSage:
             return df.to_dict(orient='records')
         elif output_format == "dataframe":
             return df.reset_index(drop=True)
-        else:
-            raise ValueError("Invalid data format specified. Use 'list', 'dict', or 'dataframe'.")
 
 
     @keyword
@@ -523,9 +525,7 @@ class ExcelSage:
 
         try:
             cell_value = sheet[cell_name].value
-            if cell_value is None:
-                logger.info(f"Cell {cell_name} is empty.")
-                return None
+            logger.info(f"Cell {cell_name} value is {cell_name}.")
             return cell_value
         except ValueError:
             raise InvalidCellAddressError(cell_name)
@@ -634,13 +634,10 @@ class ExcelSage:
             logger.info(f"Written '{cell_value}' to {cell_name} in sheet '{sheet_name}'.")
         except ValueError:
             raise InvalidCellAddressError(cell_name)
-        except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
-            raise
 
 
     @keyword
-    def get_column_count(self, sheet_name: Optional[str] = None) -> int:
+    def get_column_count(self, starting_cell: str = "A1", ignore_empty_columns: bool = False, sheet_name: Optional[str] = None) -> int:
         """
         The ``Get Column Count`` keyword retrieves the total number of columns in a specified sheet from the active workbook.
         If no sheet name is provided, it defaults to the currently active sheet.
@@ -652,18 +649,37 @@ class ExcelSage:
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
-        |   ${column_count}     Get Column Count
+        |   ${column_count}     Get Column Count    starting_cell=C10   ignore_empty_columns=True
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        sheet = self.active_workbook[sheet_name]
+        self.__argument_type_checker({"starting_cell": [starting_cell, str],
+                                      "ignore_empty_columns": [ignore_empty_columns, bool]})
 
-        column_count = sheet.max_column
+        try:
+            range_boundaries(starting_cell)
+        except ValueError:
+            raise InvalidCellAddressError(starting_cell)
+
+        start_col_letter = ''.join(filter(str.isalpha, starting_cell))
+        start_row = int(''.join(filter(str.isdigit, starting_cell)))
+        start_col_index = column_index_from_string(start_col_letter)
+
+        sheet = self.active_workbook[sheet_name]
+        headers_range = sheet.iter_rows(min_row=start_row, max_row=start_row, min_col=start_col_index, values_only=True)
+        headers = next(headers_range)
+
+        df = pd.DataFrame([headers])
+
+        if ignore_empty_columns:
+            df.dropna(axis=1, how='all', inplace=True)
+
+        column_count = df.shape[1]
         logger.info(f"Column count in sheet {sheet_name} is {column_count}.")
         return column_count
 
 
     @keyword
-    def get_row_count(self, sheet_name: Optional[str] = None, exclude_header: bool = False) -> int:
+    def get_row_count(self, sheet_name: Optional[str] = None, starting_cell: str = "A1", include_header: bool = False, ignore_empty_rows: bool = False) -> int:
         """
         The ``Get Row Count`` keyword retrieves the total number of rows in a specified sheet from the active workbook. If no sheet name is provided, it defaults to the currently active sheet.
 
@@ -676,23 +692,59 @@ class ExcelSage:
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
-        |   ${row_count}     Get Row Count
+        |   ${row_count}     Get Row Count      ignore_empty_rows=True      starting_cell=C10       include_header=True
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"exclude_header": [exclude_header, bool]})
+        self.__argument_type_checker({"starting_cell": [starting_cell, str],
+                                      "include_header": [include_header, bool],
+                                      "ignore_empty_rows": [ignore_empty_rows, bool]})
+
+        try:
+            range_boundaries(starting_cell)
+        except ValueError:
+            raise InvalidCellAddressError(starting_cell)
+
+        start_col_letter = ''.join(filter(str.isalpha, starting_cell))
+        start_row = int(''.join(filter(str.isdigit, starting_cell)))
+        start_col_index = column_index_from_string(start_col_letter)
+
         sheet = self.active_workbook[sheet_name]
+        headers_range = sheet.iter_rows(min_row=start_row, max_row=start_row, min_col=start_col_index, values_only=True)
+        headers = next(headers_range)
 
-        row_count = sheet.max_row
+        data = sheet[starting_cell:sheet.dimensions.split(':')[-1]]
+        data_list = [[cell.value for cell in row] for row in data]
 
-        if exclude_header:
-            row_count = max(0, row_count - 1)
+        new_data= []
+        valid_row_found = False
+
+        for row in data_list:
+            if not valid_row_found:
+                if len(set(row)) == 1 and None in set(row):
+                    continue
+                else:
+                    valid_row_found = True
+            new_data.append(row)
+
+        headers = new_data[0] if new_data else None
+        data = new_data[1:] if len(new_data) > 1 else []
+        df = pd.DataFrame(data, columns=headers)
+
+        if ignore_empty_rows:
+            df.dropna(axis=0, how='all', inplace=True)
+
+        row_count = df.shape[0]
+
+        if include_header and headers:
+            row_count += 1
 
         logger.info(f"Row count in sheet {sheet_name} is {row_count}.")
+
         return row_count
 
 
     @keyword
-    def append_row(self, row_data: Union[List[Any], Tuple[Any]], sheet_name: Optional[str] = None) -> None:
+    def append_row(self, row_data: List[Any], sheet_name: Optional[str] = None) -> None:
         """
         The ``Append Row`` keyword appends a new row of data to the specified sheet in the active workbook. If no ``sheet_name`` is provided, it defaults to the currently active sheet.
 
@@ -711,7 +763,7 @@ class ExcelSage:
         |   Append Row     row_data=${data}
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"row_data": [row_data, (list, tuple)]})
+        self.__argument_type_checker({"row_data": [row_data, list]})
         sheet = self.active_workbook[sheet_name]
         sheet.append(row_data)
         self.active_workbook.save(self.active_workbook_name)
@@ -719,7 +771,7 @@ class ExcelSage:
 
 
     @keyword
-    def insert_row(self, row_data: Union[List[Any], Tuple[Any]], row_index: int, sheet_name: Optional[str] = None) -> None:
+    def insert_row(self, row_data: List[Any], row_index: int, sheet_name: Optional[str] = None) -> None:
         """
         The ``Insert Row`` keyword inserts a new row at a specified index in an Excel sheet and populates that row with the provided data.
         The keyword validates the input and ensures that the row index is within Excel's allowable limits (1 to 1,048,576).
@@ -738,7 +790,7 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({
-            "row_data": [row_data, (list, tuple)],
+            "row_data": [row_data, list],
             "row_index": [row_index, int]
         })
 
@@ -1785,7 +1837,7 @@ class ExcelSage:
     @keyword
     def compare_excels(self, source_excel: str, target_excel: str, source_excel_config: Optional[dict] = None, target_excel_config: Optional[dict] = None) -> DataFrame:
         """
-        The ``Compare Excels``` keyword compares two Excel sheets and identifies differences in the data.
+        The ``Compare Excels`` keyword compares two Excel sheets and identifies differences in the data.
         The comparison is based on the values of the specified columns, and the output includes rows that are unique to either of the two sheets. It handles the comparison intelligently, providing options to configure which sheet, starting cell, and columns should be compared for each Excel file.
 
         Examples:
@@ -1904,99 +1956,13 @@ class ExcelSage:
 
         sheet = self.active_workbook[sheet_name]
         headers_range = sheet.iter_rows(min_row=start_row, max_row=start_row, min_col=start_col_index, values_only=True)
-        column_headers = next(headers_range)
+        column_headers = len(next(headers_range))
 
         return column_headers
 
 
-
 if __name__ == "__main__":
     exl = ExcelSage()
-    exl.open_workbook(r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\sample.xlsx")
-    # exl.add_sheet(sheet_name="new Sheet", sheet_pos=2, sheet_data=[["Name", "Age"], ["Dee", 26]])
-    # exl.create_workbook(r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\test_data_dummy.xlsx", overwrite_if_exists=True, sheet_data=[["Name", "Age"], ("Dee", 26)])
-    # # exl.open_workbook(r"C:\vscode\PayRoll\Documents\Files\CONSTANTVELOCITY3_15-11-2023_tecu003\CONSTANTVELOCITY3_15-11-2023_tecu003.xlsx")
-    # # exl.set_active_sheet("Failed_Records")
-    data_as_df = exl.fetch_sheet_data(output_format="dict", sheet_name="Sheet2", starting_cell="D6", ignore_empty_columns=True, ignore_empty_rows=True)
-    print("DataFrame:\n", data_as_df)
-    # print(exl.get_sheets())
-    # print(exl.get_cell_value(cell_name="A2"))
-    # # exl.write_to_cell(cell_name="A6", cell_value="Dee")
-    # print(exl.get_column_count())
-    # print(exl.get_row_count())
-
-    # exl.copy_sheet(source_sheet_name="Sheet1", new_sheet_name="new_sheet ")
-    # exl.clear_sheet(sheet_name="new_sheet")
-    # exl.delete_sheet(sheet_name="new_sheet")
-    # print(exl.find_value(value=100, occurence='all'))
-    # alignment_config = {
-    # "vertical": "center",
-    # "horizontal": "left"
-    # }
-
-    # border_config = {
-    #     "left": True,
-    #     "right": True,
-    #     "style": "thin",
-    #     "color": "#FF0000"
-    # }
-
-    # exl.format_cell(
-    #     cell_name="C3", font_size=12, font_color="#FF0000",
-    #     alignment=alignment_config, wrap_text=True, bg_color="#FFFF00", cell_width=120, cell_height=25,
-    #     font_name="Arial", bold=True, italic=True, underline=True, border=border_config
-    # )
-    # exl.format_cell(cell_name="E1", auto_fit_height=True, auto_fit_width=True)
-
-    # exl.close_workbook()
-
-    # files_to_merge = [r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\sample - Copy (2).xlsx",
-    #               r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\sample - Copy.xlsx"]
-    # output_file = r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\merge.xlsx"
-
-    # exl.merge_excels(files_to_merge, output_file, merge_type="sheet_wise")
-
-    # exl.create_workbook(r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\merge.xlsx", overwrite_if_exists=True, sheet_data=[["Name","Age"], ["Dee", 26], "John"])
-    # print(exl.get_sheets())
-
-    # exl.insert_row(row_data=("Dee",77,67), row_index=2)
-    # exl.delete_row(row_index=2)
-    # exl.insert_column(col_data=["Name", "Dee", "Mark", "Jack"], col_index=1)
-    # exl.append_column(col_data=["Age", 34, 45, 25])
-    # exl.append_row(row_data=["Name", "Dee", "Mark", "Jack"])
-    # exl.delete_column(col_index=1)
-    # print(exl.get_column_values(column_names_or_letters='A', output_format='dataframe'))
-    # print(exl.get_row_values(row_indices=[1, 4], output_format='dict'))
-    # print(exl.find_and_replace(old_value="Deekshith", new_value="Dee", occurence='all'))
-    # exl.merge_cells(cell_range='A3:A2')
-    # exl.unmerge_cells(cell_range='A2:A3')
-    # Sorting by a single column name
-    # print(exl.sort_column(column_name_or_letter="Age", asc=True, output_format="list"))
-
-
-    # print(exl.find_duplicates(column_names_or_letters="First Name",starting_cell="D6", sheet_name="Sheet2", output_format="dataframe"))
-
-    # source_config = {
-    # 'sheet_name': 'Sheet1',
-    # 'columns': ['Name', 'Age']
-    # }
-
-    # target_config = {
-    #     'sheet_name': 'Sheet2',
-    #     'starting_cell': 'D8',
-    #     'columns': ['Name', 'Age']
-    # }
-
-    # print(exl.compare_excels(source_excel=r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\test_data - Copy.xlsx",
-    #                          target_excel=r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\test_data - Copy.xlsx",
-    #                          target_excel_config=target_config,
-    #                          source_excel_config=source_config))
-
-    # exl.export_to_csv(filename=r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\sample.xlsx",sheet_name="Sheet1", output_filename=r"C:\vscode\ExcelLibrary.tar\ExcelLibrary\data\csv_file.csv")
-    # exl.protect_sheet(password="Dee")
-    # exl.unprotect_sheet(password="Dee")
-    # exl.protect_workbook(password="Dee1", protect_sheets=True)
-    # exl.unprotect_workbook(unprotect_sheets=True)
-
-    # print(exl.get_column_headers(starting_cell="D6", sheet_name="Sheet2"))
-    # print(exl.get_column_headers())
+    exl.open_workbook(r"C:\vscode\Web\robotframework-excelsage\data\sample.xlsx")
+    print(exl.get_row_count(sheet_name="Sheet1", starting_cell="A1", ignore_empty_rows=True, include_header=True)
+)
