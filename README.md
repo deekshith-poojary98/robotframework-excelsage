@@ -14,6 +14,9 @@ You can install the ExcelSage library using pip:
 pip install robotframework-excelsage
 ```
 
+## Documentation
+You can find the keyword documentation [here](https://deekshith-poojary98.github.io/robotframework-excelsage/).
+
 ## Python Usage
 Here’s a brief guide on how to use the library in your Python projects.
 #### Opening and Creating Workbooks
@@ -150,7 +153,7 @@ Create New Workbook
 Fetch Data From Sheet
     ${data}=    Fetch Sheet Data    sheet_name=Sheet1    output_format=dataframe    starting_cell=A1
     Log    ${data}
-```    
+```
 
 #### Working with Sheets
 ```robot
@@ -279,8 +282,8 @@ Find Duplicates
 - `save_workbook(self)` – Saves the active workbook.
 - `set_active_sheet(self, sheet_name)` – Sets the active sheet.
 - `write_to_cell(self, cell_name, cell_value, sheet_name)` – Writes a value to a specific cell.
-- `get_column_count(self, sheet_name)` – Returns the count of columns in the sheet.
-- `get_row_count(self, sheet_name, exclude_header)` – Returns the count of rows in the sheet, optionally excluding the header.
+- `get_column_count(self, starting_cell, ignore_empty_columns, sheet_name)` – Returns the count of columns in the sheet.
+- `get_row_count(self, sheet_name, starting_cell, include_header, ignore_empty_rows)` – Returns the count of rows in the sheet, optionally excluding the header.
 - `append_row(self, row_data, sheet_name)` – Appends a row to the specified sheet.
 - `insert_row(self, row_data, row_index, sheet_name)` – Inserts a row at a specific index.
 - `delete_row(self, row_index, sheet_name)` – Deletes a row at a specific index.
@@ -308,4 +311,4 @@ Find Duplicates
 - `get_column_headers(self, starting_cell, sheet_name)` – Fetches the column headers starting from the specified cell.
 
 ## License
-This project is licensed under the [Apache-2.0 License](https://github.com/Deekshith-07/robotframework-excelsage?tab=Apache-2.0-1-ov-file). 
+This project is licensed under the [Apache-2.0 License](https://github.com/Deekshith-07/robotframework-excelsage?tab=Apache-2.0-1-ov-file).
