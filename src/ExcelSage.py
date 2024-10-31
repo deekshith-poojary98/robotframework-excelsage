@@ -24,13 +24,13 @@ class WorkbookNotProtectedError(ExcelError):
     def __init__(self, message: str = "The workbook is not currently protected and cannot be unprotected."):
         self.message = message
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class WorkbookAlreadyProtectedError(ExcelError):
     def __init__(self, message: str = "The workbook is already protected and cannot be protected be again."):
         self.message = message
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidColumnNameError(ExcelError):
     def __init__(self, sheet: str, columns: List[str]):
@@ -38,47 +38,47 @@ class InvalidColumnNameError(ExcelError):
         self.sheet = sheet
         self.message = f"Invalid columns. Columns not found: {self.columns} in sheet '{self.sheet}'."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class ColumnMismatchError(ExcelError):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidCellRangeError(ExcelError):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidColumnIndexError(ExcelError):
     def __init__(self, col_index: int):
         self.col_index = col_index
         self.message = f"Column index {col_index} is invalid or out of bounds. The valid range is 1 to 16384."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidRowIndexError(ExcelError):
     def __init__(self, row_index: int):
         self.row_index = row_index
         self.message = f"Row index {row_index} is invalid or out of bounds. The valid range is 1 to 1048576."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class FileAlreadyExistsError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
         self.message = f"Unable to create workbook. The file '{self.file_name}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidColorError(ExcelError):
     def __init__(self, type, color: str):
         self.color = color
         self.message = f"Invalid {type} color: '{self.color}'. Use valid hex color in #RRGGBB format."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidBorderStyleError(ExcelError):
     def __init__(self, border_style: str, allowed_styles: List[str]):
@@ -86,7 +86,7 @@ class InvalidBorderStyleError(ExcelError):
         self.allowed_styles = allowed_styles
         self.message = f"Invalid border style: '{self.border_style}'. Allowed values are {self.allowed_styles}."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidAlignmentError(ExcelError):
     def __init__(self, alignment_type: str, alignment_value: str, allowed_values: List[str]):
@@ -95,62 +95,62 @@ class InvalidAlignmentError(ExcelError):
         self.allowed_values = allowed_values
         self.message = f"Invalid {self.alignment_type} alignment: '{self.alignment_value}'. Allowed values are {self.allowed_values}."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidSheetNameError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
         self.message = f"The sheet name '{self.sheet_name}' is invalid."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class SheetAlreadyProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
         self.message = f"The sheet '{self.sheet_name}' is already protected and cannot be protected be again."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class SheetNotProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
         self.message = f"The sheet '{self.sheet_name}' is not currently protected and cannot be unprotected."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class ExcelFileNotFoundError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
         self.message = f"Excel file '{file_name}' not found. Please give the valid file path."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class WorkbookNotOpenError(ExcelError):
     def __init__(self, message: str ="Workbook isn't open. Please open the workbook first."):
         self.message = message
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class SheetAlreadyExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
         self.message = f"Sheet '{self.sheet_name}' already exists."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class SheetDoesntExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
         self.message = f"Sheet '{self.sheet_name}' doesn't exists."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidCellAddressError(ExcelError):
     def __init__(self, cell_name: str):
         self.cell_name = cell_name
         self.message = f"Cell '{self.cell_name}' doesn't exists."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 class InvalidSheetPositionError(ExcelError):
     def __init__(self, position: int, max_position: int):
@@ -158,7 +158,7 @@ class InvalidSheetPositionError(ExcelError):
         self.max_position = max_position
         self.message = f"Invalid sheet position: {self.position}. Maximum allowed is {self.max_position}."
         super().__init__(self.message)
-        logger.error(self.message)
+        
 
 
 
@@ -1524,10 +1524,6 @@ class ExcelSage:
 
         except ValueError:
             raise InvalidCellAddressError(cell_name)
-
-        except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
-            raise
 
 
     @keyword
