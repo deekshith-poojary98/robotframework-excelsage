@@ -3,17 +3,20 @@ from assertpy import assert_that
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
 from openpyxl.worksheet.protection import SheetProtection
+from openpyxl.styles import Color
 import openpyxl as xl
 import pytest
 import shutil
 from pandas import DataFrame
+import pandas as pd
 
 exl = ExcelSage()
 
 EXCEL_FILE_PATH = r".\data\sample.xlsx"
+CSV_FILE_PATH = r".\data\sample.csv"
 INVALID_EXCEL_FILE_PATH = r"..\data\sample1.xlsx"
 NEW_EXCEL_FILE_PATH = r".\data\new_excel.xlsx"
-INVALID_SHEET_NAME = "invalid_sheet"
+INVALID_SHEET_NAME = "invalid[]sheet"
 INVALID_CELL_ADDRESS = "AAAA1"
 INVALID_ROW_INDEX = 1012323486523
 INVALID_COLUMN_INDEX = 163841
@@ -64,7 +67,6 @@ def test_create_workbook_success(setup_teardown):
 def test_create_workbook_file_already_exists(setup_teardown):
     with pytest.raises(FileAlreadyExistsError) as exc_info:
         exl.create_workbook(workbook_name=NEW_EXCEL_FILE_PATH)
-        assert False, "Expected FileAlreadyExistsError but did not get one"
 
     assert_that(str(exc_info.value)).is_equal_to(f"Unable to create workbook. The file '{NEW_EXCEL_FILE_PATH}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file.")
 
@@ -716,6 +718,13 @@ def test_protect_workbook_success(setup_teardown):
     workbook.close()
 
 
+def test_protect_workbook_workbook_not_open(setup_teardown):
+    with pytest.raises(WorkbookNotOpenError) as exc_info:
+        exl.protect_workbook(password="password", protect_sheets=True)
+
+    assert_that(str(exc_info.value)).is_equal_to("Workbook isn't open. Please open the workbook first.")
+
+
 def test_protect_workbook_workbook_already_protected(setup_teardown):
     workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
     protection = WorkbookProtection()
@@ -785,6 +794,13 @@ def test_unprotect_workbook_success(setup_teardown):
     workbook.close()
 
 
+def test_unprotect_workbook_workbook_not_open(setup_teardown):
+    with pytest.raises(WorkbookNotOpenError) as exc_info:
+        exl.unprotect_workbook(unprotect_sheets=True)
+
+    assert_that(str(exc_info.value)).is_equal_to("Workbook isn't open. Please open the workbook first.")
+
+
 def test_unprotect_workbook_workbook_not_protected(setup_teardown):
     workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
     workbook.security.lockStructure = False
@@ -801,3 +817,339 @@ def test_unprotect_workbook_workbook_not_protected(setup_teardown):
         exl.unprotect_workbook(unprotect_sheets=True)
 
     assert_that(str(exc_info.value)).is_equal_to("The workbook is not currently protected and cannot be unprotected.")
+
+
+def test_clear_sheet_success(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Dee", 26], ["Mark", 56], ["John", 30]]
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    workbook.create_sheet(title="Clear_sheet", index=1)
+    sheet = workbook["Clear_sheet"]
+
+    for row in sheet_data:
+        sheet.append(row)
+
+    workbook.save(EXCEL_FILE_PATH)
+    workbook.close()
+
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.clear_sheet(sheet_name="Clear_sheet")
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook["Clear_sheet"]
+
+    is_empty = True
+    for row in sheet.iter_rows(min_row=1, min_col=1, max_col=sheet.max_column, values_only=True):
+        if any(cell is not None for cell in row):
+            is_empty = False
+            break
+
+    assert_that(is_empty).is_true()
+    workbook.remove(sheet)
+    workbook.save(EXCEL_FILE_PATH)
+    workbook.close()
+
+
+def test_copy_sheet_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.copy_sheet(source_sheet_name="Sheet1", new_sheet_name="Copied_sheet")
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheets = workbook.sheetnames
+    assert_that(sheets).is_length(4).contains("Sheet1", "Offset_table", "Invalid_header", "Copied_sheet")
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet1 = workbook["Sheet1"]
+    sheet2 = workbook["Copied_sheet"]
+
+    if sheet1.max_row != sheet2.max_row or sheet1.max_column != sheet2.max_column:
+        assert False, "Rows/Columns not matching"
+
+    for row in range(1, sheet1.max_row + 1):
+        for col in range(1, sheet1.max_column + 1):
+            cell1 = sheet1.cell(row=row, column=col).value
+            cell2 = sheet2.cell(row=row, column=col).value
+
+            if cell1 != cell2:
+                assert False, "Cells not matching"
+
+    workbook.remove(sheet2)
+    workbook.save(EXCEL_FILE_PATH)
+    workbook.close()
+
+
+def test_copy_sheet_workbook_not_open(setup_teardown):
+    with pytest.raises(WorkbookNotOpenError) as exc_info:
+        exl.copy_sheet(source_sheet_name="Sheet1", new_sheet_name="Copied_sheet")
+
+    assert_that(str(exc_info.value)).is_equal_to("Workbook isn't open. Please open the workbook first.")
+
+
+def test_copy_sheet_invalid_sheet_name(setup_teardown):
+    with pytest.raises(InvalidSheetNameError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.copy_sheet(source_sheet_name="Sheet1", new_sheet_name=INVALID_SHEET_NAME)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"The sheet name '{INVALID_SHEET_NAME}' is invalid.")
+
+
+def test_copy_sheet_doesnt_exists(setup_teardown):
+    with pytest.raises(SheetDoesntExistsError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.copy_sheet(source_sheet_name=INVALID_SHEET_NAME, new_sheet_name="Copied_sheet")
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Sheet '{INVALID_SHEET_NAME}' doesn't exists.")
+
+
+@pytest.mark.parametrize("value, occurence, expected_value",
+                         [("Male", "first", ("str", "C2")),
+                          ("Lester", "all", ("list", ["A2", "A10"])),
+                          ("Invalid_value", "first", (None, None))
+                          ])
+def test_find_value_success(setup_teardown, value, occurence, expected_value):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    cell = exl.find_value(sheet_name="Sheet1", value=value, occurence=occurence)
+
+    if expected_value[0] is None:
+        assert_that(cell).is_none()
+    else:
+        assert_that(isinstance(cell, eval(expected_value[0]))).is_true()
+        assert_that(cell).is_equal_to(expected_value[1])
+
+
+def test_find_value_invalid_occurence(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_value(sheet_name="Sheet1", value="value", occurence="invalid_occurence")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid occurence, use either 'first' or 'all'.")
+
+
+@pytest.mark.parametrize("occurence, expected_value", [("first", ("str", "A14")),
+                                                       ("all", ("list", ["A18", "A19"])),
+                                                       ("first", (None, None))])
+def test_find_and_replace_success(setup_teardown, occurence, expected_value):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    cell = exl.find_and_replace(sheet_name="Sheet1", old_value="Marcel", new_value="Mark", occurence=occurence)
+
+    if expected_value[0] is None:
+        assert_that(cell).is_none()
+    else:
+        assert_that(isinstance(cell, eval(expected_value[0]))).is_true()
+        assert_that(cell).is_equal_to(expected_value[1])
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook.active
+
+    if isinstance(cell, list):
+        for i in cell:
+            assert_that(sheet[i].value).is_equal_to("Mark")
+    elif isinstance(cell, str):
+        assert_that(sheet[cell].value).is_equal_to("Mark")
+
+    workbook.close()
+
+
+def test_find_and_replace_value_invalid_occurence(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_and_replace(sheet_name="Sheet1", old_value="Marcel", new_value="Mark", occurence="invalid_occurence")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid occurence, use either 'first' or 'all'.")
+
+
+def test_format_cell_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    alignment_config = {
+    "vertical": "center",
+    "horizontal": "left"
+    }
+
+    border_config = {
+        "left": True,
+        "right": True,
+        "top": True,
+        "bottom": True,
+        "style": "thin",
+        "color": "#FF0000"
+    }
+    exl.format_cell(
+        sheet_name="Sheet1", cell_name="C3", font_size=12, font_color="#FF0000",
+        alignment=alignment_config, wrap_text=True, bg_color="#FFFF00", cell_width=120, cell_height=25,
+        font_name="Arial", bold=True, italic=True, strike_through=True, underline=True, border=border_config, auto_fit_height=False, auto_fit_width=False
+    )
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook["Sheet1"]
+    cell = sheet["C3"]
+
+    cell_properties = {
+        "cell_name": cell.coordinate,
+        "font_size": cell.font.size,
+        "font_color": cell.font.color.rgb if cell.font.color else None,
+        "alignment_horizontal": cell.alignment.horizontal,
+        "alignment_vertical": cell.alignment.vertical,
+        "wrap_text": cell.alignment.wrap_text,
+        "bg_color": cell.fill.start_color.rgb if cell.fill.start_color else None,
+        "cell_width": sheet.column_dimensions[cell.column_letter].width,
+        "cell_height": sheet.row_dimensions[cell.row].height,
+        "font_name": cell.font.name,
+        "bold": cell.font.bold,
+        "italic": cell.font.italic,
+        "underline": cell.font.underline,
+        "strike_through": cell.font.strike,
+        "border": {
+            "top": cell.border.top.style if cell.border.top else None,
+            "bottom": cell.border.bottom.style if cell.border.bottom else None,
+            "left": cell.border.left.style if cell.border.left else None,
+            "right": cell.border.right.style if cell.border.right else None,
+        }
+    }
+    assert_that(cell_properties['font_size']).is_equal_to(12.0)
+    assert_that(cell_properties['font_color']).is_equal_to("FFFF0000")
+    assert_that(cell_properties["alignment_horizontal"]).is_equal_to("left")
+    assert_that(cell_properties["alignment_vertical"]).is_equal_to("center")
+    assert_that(cell_properties["wrap_text"]).is_true()
+    assert_that(cell_properties["bg_color"]).is_equal_to("FFFFFF00")
+    assert_that(cell_properties["cell_width"]).is_equal_to(120.0)
+    assert_that(cell_properties["cell_height"]).is_equal_to(25.0)
+    assert_that(cell_properties["font_name"]).is_equal_to("Arial")
+    assert_that(cell_properties["bold"]).is_true()
+    assert_that(cell_properties["italic"]).is_true()
+    assert_that(cell_properties["underline"]).is_equal_to("single")
+    assert_that(cell_properties["strike_through"]).is_true()
+    assert_that(cell_properties["border"]).is_equal_to({'top': 'thin', 'bottom': 'thin', 'left': 'thin', 'right': 'thin'})
+    workbook.close()
+
+    exl.format_cell(sheet_name="Offset_table", cell_name="D6", auto_fit_height=True, auto_fit_width=True)
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook["Offset_table"]
+    cell = sheet["D6"]
+    cell_value = str(cell.value) if cell.value else ""
+    col_letter = get_column_letter(cell.column)
+    max_length = max(len(cell_value), len(col_letter))
+    computed_width = max_length + 2
+    max_line_count = cell_value.count('\n') + 1
+    computed_height = max(15, max_line_count * 15)
+    cell_properties = {
+        "auto_width": computed_width,
+        "auto_height": computed_height,
+    }
+
+    assert_that(cell_properties["auto_width"]).is_equal_to(12)
+    assert_that(cell_properties["auto_height"]).is_equal_to(15)
+    workbook.close()
+
+
+def test_format_cell_invalid_cell_address(setup_teardown):
+    with pytest.raises(InvalidCellAddressError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name=INVALID_CELL_ADDRESS, font_size=10)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Cell '{INVALID_CELL_ADDRESS}' doesn't exists.")
+
+
+def test_format_cell_invalid_font_color(setup_teardown):
+    with pytest.raises(InvalidColorError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", font_color="invalid_color")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid font color: 'invalid_color'. Use valid hex color in #RRGGBB format.")
+
+
+def test_format_cell_invalid_bg_color(setup_teardown):
+    with pytest.raises(InvalidColorError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", bg_color="invalid_color")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid background color: 'invalid_color'. Use valid hex color in #RRGGBB format.")
+
+
+def test_format_cell_invalid_border_color(setup_teardown):
+    with pytest.raises(InvalidColorError) as exc_info:
+        border_config = {
+            "left": True,
+            "right": True,
+            "top": True,
+            "bottom": True,
+            "style": "thin",
+            "color": "invalid_color"
+        }
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", border=border_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid border color: 'invalid_color'. Use valid hex color in #RRGGBB format.")
+
+
+def test_format_cell_invalid_horizontal_alignment(setup_teardown):
+    with pytest.raises(InvalidAlignmentError) as exc_info:
+        alignment_config = {
+            "vertical": "center",
+            "horizontal": "invalid_alignment"
+            }
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", alignment=alignment_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid horizontal alignment: 'invalid_alignment'. Allowed values are ['left', 'center', 'right'].")
+
+
+def test_format_cell_invalid_vertical_alignment(setup_teardown):
+    with pytest.raises(InvalidAlignmentError) as exc_info:
+        alignment_config = {
+            "vertical": "invalid_alignment",
+            "horizontal": "left"
+            }
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", alignment=alignment_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid vertical alignment: 'invalid_alignment'. Allowed values are ['top', 'center', 'bottom'].")
+
+
+def test_format_cell_invalid_border_style(setup_teardown):
+    with pytest.raises(InvalidBorderStyleError) as exc_info:
+        border_config = {
+            "left": True,
+            "right": True,
+            "top": True,
+            "bottom": True,
+            "style": "invalid_style"
+        }
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.format_cell(sheet_name="Offset_table", cell_name="D6", border=border_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid border style: 'invalid_style'. Allowed values are ['dashDot', 'dashDotDot', 'dashed', 'dotted', 'double', 'hair', 'medium', 'mediumDashDot', 'mediumDashDotDot', 'mediumDashed', 'slantDashDot', 'thick', 'thin'].")
+
+
+def test_get_column_headers_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    headers = exl.get_column_headers(sheet_name="Offset_table", starting_cell="D6")
+    assert_that(headers).is_length(7).contains("First Name", "Last Name", "Gender",	"Country", "Age", "Date", "Salary")
+
+
+def test_get_column_headers_invalid_cell_address(setup_teardown):
+    with pytest.raises(InvalidCellAddressError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.get_column_headers(sheet_name="Offset_table", starting_cell=INVALID_CELL_ADDRESS)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Cell '{INVALID_CELL_ADDRESS}' doesn't exists.")
+
+
+def test_export_to_csv_success(setup_teardown):
+    output_filename = exl.export_to_csv(filename=EXCEL_FILE_PATH, output_filename=CSV_FILE_PATH, sheet_name="Sheet1", overwrite_if_exists=True)
+
+    assert_that(output_filename).is_equal_to(CSV_FILE_PATH)
+    assert_that(os.path.exists(CSV_FILE_PATH)).is_true()
+
+
+def test_export_to_csv_file_not_found(setup_teardown):
+    with pytest.raises(ExcelFileNotFoundError) as exc_info:
+        exl.export_to_csv(filename=INVALID_EXCEL_FILE_PATH, output_filename=CSV_FILE_PATH, sheet_name="Sheet1", overwrite_if_exists=True)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
+
+
+def test_export_to_csv_file_already_exists(setup_teardown):
+    with pytest.raises(FileAlreadyExistsError) as exc_info:
+        exl.export_to_csv(filename=EXCEL_FILE_PATH, output_filename=CSV_FILE_PATH, sheet_name="Sheet1", overwrite_if_exists=False)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Unable to create workbook. The file '{CSV_FILE_PATH}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file.")
