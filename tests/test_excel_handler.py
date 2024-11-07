@@ -1,3 +1,4 @@
+import time
 from src.ExcelSage import *
 from assertpy import assert_that
 from openpyxl import Workbook
@@ -7,6 +8,7 @@ from openpyxl.styles import Color
 import openpyxl as xl
 import pytest
 import shutil
+import psutil
 from pandas import DataFrame
 import pandas as pd
 
@@ -29,21 +31,61 @@ def setup_teardown(scope='function', autouse=False):
         exl.close_workbook()
 
 
-def copy_test_excel_file():
+def copy_test_excel_file(destination_file = r".\data\sample.xlsx"):
     source_file = r".\data\sample_original.xlsx"
-    destination_file = r".\data\sample.xlsx"
     shutil.copy(source_file, destination_file)
+    return destination_file
 
 
-def delete_the_test_excel_file():
-    os.remove(EXCEL_FILE_PATH)
+def delete_the_test_excel_file(files, max_retries=3, wait_time=2):
+    def find_process_locking_file(file_path):
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'open_files']):
+            try:
+                for open_file in proc.info['open_files'] or []:
+                    if open_file.path == file_path:
+                        processes.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        return processes
+
+    def kill_process(proc):
+        try:
+            proc.terminate()
+            proc.wait(timeout=3)
+            print(f"Killed process {proc.info['pid']} - {proc.info['name']}")
+        except psutil.NoSuchProcess:
+            print(f"Process {proc.info['pid']} no longer exists.")
+        except psutil.AccessDenied:
+            print(f"Permission denied to terminate process {proc.info['pid']}.")
+        except psutil.TimeoutExpired:
+            print(f"Timed out trying to terminate process {proc.info['pid']}.")
+
+    for file_path in files:
+        if os.path.exists(file_path):
+            for attempt in range(max_retries):
+                try:
+                    os.chmod(file_path, 0o777)
+                    os.remove(file_path)
+                    break
+                except PermissionError:
+                    print(f"PermissionError on {file_path}. Attempt {attempt + 1}/{max_retries}.")
+                    processes = find_process_locking_file(file_path)
+                    if processes:
+                        for index, proc in enumerate(processes, start=1):
+                            print(index, proc)
+                            kill_process(proc)
+                        time.sleep(wait_time)
+                    else:
+                        print(f"No process found locking the file {file_path}. Trying to delete again.")
+                        time.sleep(wait_time)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup():
     copy_test_excel_file()
     yield
-    delete_the_test_excel_file()
+    delete_the_test_excel_file(files = [EXCEL_FILE_PATH, NEW_EXCEL_FILE_PATH, CSV_FILE_PATH])
 
 
 def test_open_workbook_success(setup_teardown):
@@ -1153,3 +1195,236 @@ def test_export_to_csv_file_already_exists(setup_teardown):
         exl.export_to_csv(filename=EXCEL_FILE_PATH, output_filename=CSV_FILE_PATH, sheet_name="Sheet1", overwrite_if_exists=False)
 
     assert_that(str(exc_info.value)).is_equal_to(f"Unable to create workbook. The file '{CSV_FILE_PATH}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file.")
+
+
+def test_merge_excels_multi_sheet_success(setup_teardown):
+    NEW_FILE = copy_test_excel_file(destination_file = r".\data\sample2.xlsx")
+    list_of_files = [EXCEL_FILE_PATH, NEW_FILE]
+    output_file = r".\data\merged_file_multi_sheets.xlsx"
+    exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="multiple_sheets", skip_bad_rows=True)
+    assert_that(os.path.exists(output_file)).is_true()
+
+    workbook = excel.load_workbook(filename=output_file)
+    sheets = workbook.sheetnames
+    workbook.close()
+    assert_that(sheets).is_length(6).contains("Sheet1_sample", "Offset_table_sample2", "Offset_table_sample", "Invalid_header_sample", "Invalid_header_sample2", "Sheet1_sample2")
+    delete_the_test_excel_file(files=[output_file, NEW_FILE])
+
+
+def test_merge_excels_single_sheet_success(setup_teardown):
+    data = {
+        r".\data\single_sheet_workbook1.xlsx": [
+            ["Name", "Age"],
+            ["Mark", 25],
+            ["John", 30]
+        ],
+        r".\data\single_sheet_workbook2.xlsx": [
+            ["Name", "Age"],
+            ["Dee", 26],
+            ["Alex", 40]
+        ]
+    }
+
+    def create_workbook(filename, data):
+        workbook = Workbook()
+        sheet = workbook.active
+        for row in data:
+            sheet.append(row)
+        workbook.save(filename)
+        workbook.close()
+
+    for filename, workbook_data in data.items():
+        create_workbook(filename, workbook_data)
+
+    list_of_files = [r".\data\single_sheet_workbook1.xlsx", r".\data\single_sheet_workbook2.xlsx"]
+    output_file = r".\data\merged_file_single_sheet.xlsx"
+    exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="single_sheet", skip_bad_rows=True)
+    assert_that(os.path.exists(output_file)).is_true()
+
+    expected_data = [["Name", "Age"],["Mark", 25],["John", 30],["Dee", 26],["Alex", 40]]
+    workbook = excel.load_workbook(filename=output_file)
+    sheets = workbook.sheetnames
+    assert_that(sheets).is_length(1)
+    sheet = workbook[sheets[0]]
+    assert_that(sheet.max_row).is_equal_to(5)
+    assert_that(sheet.max_column).is_equal_to(2)
+
+    for row_index, expected_row in enumerate(expected_data, start=1):
+        for col_index, expected_value in enumerate(expected_row, start=1):
+            cell_value = sheet.cell(row=row_index, column=col_index).value
+            if cell_value != expected_value:
+                assert False, f"Data mismatch ({cell_value} != {expected_value})"
+
+    workbook.close()
+    delete_the_test_excel_file(files=[r".\data\single_sheet_workbook1.xlsx", r".\data\single_sheet_workbook2.xlsx", output_file, ])
+
+
+def test_merge_excels_sheet_wise_success(setup_teardown):
+    data = {
+        r".\data\sheet_wise_workbook1.xlsx": {
+            "Sheet1": [
+                ["Name", "Age"],
+                ["Mark", 25],
+                ["John", 30]
+            ],
+            "Sheet2": [
+                ["City", "Country"],
+                ["New York", "USA"],
+                ["London", "UK"]
+            ]
+        },
+        r".\data\sheet_wise_workbook2.xlsx": {
+            "Sheet1": [
+                ["Name", "Age"],
+                ["Dee", 26],
+                ["Alex", 40]
+            ],
+            "Sheet2": [
+                ["City", "Country"],
+                ["Berlin", "Germany"],
+                ["Paris", "France"]
+            ]
+        }
+    }
+
+    def create_workbook(filename, sheets_data):
+        workbook = Workbook()
+
+        first_sheet_name, first_sheet_data = list(sheets_data.items())[0]
+        sheet = workbook.active
+        sheet.title = first_sheet_name
+        for row in first_sheet_data:
+            sheet.append(row)
+
+        for sheet_name, sheet_data in list(sheets_data.items())[1:]:
+            sheet = workbook.create_sheet(title=sheet_name)
+            for row in sheet_data:
+                sheet.append(row)
+
+        workbook.save(filename)
+        workbook.close()
+
+    for filename, sheets_data in data.items():
+        create_workbook(filename, sheets_data)
+
+    list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
+    output_file = r".\data\merged_file_sheet_wise.xlsx"
+    exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise", skip_bad_rows=True)
+    assert_that(os.path.exists(output_file)).is_true()
+
+    expected_data = {
+                "Sheet_1" : [["Name", "Age"],["Mark", 25],["John", 30],["Dee", 26],["Alex", 40]],
+                "Sheet_2" : [["City", "Country"],["New York", "USA"],["London", "UK"],["Berlin", "Germany"],["Paris","France"]]
+            }
+
+    workbook = excel.load_workbook(filename=output_file)
+    sheets = workbook.sheetnames
+    assert_that(sheets).is_length(2)
+
+    for i in sheets:
+        sheet = workbook[i]
+        assert_that(sheet.max_row).is_equal_to(5)
+        assert_that(sheet.max_column).is_equal_to(2)
+
+        for row_index, expected_row in enumerate(expected_data[i], start=1):
+            for col_index, expected_value in enumerate(expected_row, start=1):
+                cell_value = sheet.cell(row=row_index, column=col_index).value
+                if cell_value != expected_value:
+                    assert False, f"Data mismatch ({cell_value} != {expected_value})"
+
+    workbook.close()
+    delete_the_test_excel_file(files=[output_file, r".\data\sheet_wise_workbook2.xlsx", r".\data\sheet_wise_workbook1.xlsx"])
+
+
+def test_merge_excels_empty_files_list(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.merge_excels(file_list=[], output_filename="output_file.xlsx")
+
+    assert_that(str(exc_info.value)).is_equal_to("The file list is empty. Provide at least one file to merge.")
+
+
+def test_merge_excels_invalid_merge_type(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        list_of_files = [r".\data\workbook1.xlsx", r".\data\workbook2.xlsx"]
+        output_file = r".\data\merged_file.xlsx"
+        exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="invalid_merge_type")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid merge type. Use 'multiple_sheets', 'single_sheet', or 'sheet_wise'.")
+
+
+def test_merge_excels_multi_sheet_file_not_found(setup_teardown):
+    with pytest.raises(ExcelFileNotFoundError) as exc_info:
+        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
+        output_file = r".\data\merged_file.xlsx"
+        exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="multiple_sheets")
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
+
+
+def test_merge_excels_single_sheet_file_not_found(setup_teardown):
+    with pytest.raises(ExcelFileNotFoundError) as exc_info:
+        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
+        output_file = r".\data\merged_file.xlsx"
+        exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="single_sheet")
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
+
+
+def test_merge_excels_sheet_wise_file_not_found(setup_teardown):
+    with pytest.raises(ExcelFileNotFoundError) as exc_info:
+        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
+        output_file = r".\data\merged_file.xlsx"
+        exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
+
+
+def test_merge_excels_sheet_wise_index_error(setup_teardown):
+    data = {
+        r".\data\sheet_wise_workbook1.xlsx": {
+            "Sheet1": [
+                ["Name", "Age"],
+                ["Mark", 25],
+                ["John", 30]
+            ],
+            "Sheet2": [
+                ["City", "Country"],
+                ["New York", "USA"],
+                ["London", "UK"]
+            ]
+        },
+        r".\data\sheet_wise_workbook2.xlsx": {
+            "Sheet1": [
+                ["Name", "Age"],
+                ["Dee", 26],
+                ["Alex", 40]
+            ]
+        }
+    }
+
+    def create_workbook(filename, sheets_data):
+        workbook = Workbook()
+
+        first_sheet_name, first_sheet_data = list(sheets_data.items())[0]
+        sheet = workbook.active
+        sheet.title = first_sheet_name
+        for row in first_sheet_data:
+            sheet.append(row)
+
+        for sheet_name, sheet_data in list(sheets_data.items())[1:]:
+            sheet = workbook.create_sheet(title=sheet_name)
+            for row in sheet_data:
+                sheet.append(row)
+
+        workbook.save(filename)
+        workbook.close()
+
+    for filename, sheets_data in data.items():
+        create_workbook(filename, sheets_data)
+
+    with pytest.warns(UserWarning, match="Skipping"):
+        list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
+        output_file = r".\data\merged_file_sheet_wise.xlsx"
+        exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
+
+    delete_the_test_excel_file(files=[r".\data\sheet_wise_workbook2.xlsx", r".\data\sheet_wise_workbook1.xlsx"])
