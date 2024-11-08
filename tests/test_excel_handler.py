@@ -16,7 +16,7 @@ exl = ExcelSage()
 
 EXCEL_FILE_PATH = r".\data\sample.xlsx"
 CSV_FILE_PATH = r".\data\sample.csv"
-INVALID_EXCEL_FILE_PATH = r"..\data\sample1.xlsx"
+INVALID_EXCEL_FILE_PATH = r"..\data\invalid_file.xlsx"
 NEW_EXCEL_FILE_PATH = r".\data\new_excel.xlsx"
 INVALID_SHEET_NAME = "invalid[]sheet"
 INVALID_CELL_ADDRESS = "AAAA1"
@@ -37,55 +37,23 @@ def copy_test_excel_file(destination_file = r".\data\sample.xlsx"):
     return destination_file
 
 
-def delete_the_test_excel_file(files, max_retries=3, wait_time=2):
-    def find_process_locking_file(file_path):
-        processes = []
-        for proc in psutil.process_iter(['pid', 'name', 'open_files']):
-            try:
-                for open_file in proc.info['open_files'] or []:
-                    if open_file.path == file_path:
-                        processes.append(proc)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-        return processes
-
-    def kill_process(proc):
+def delete_the_test_excel_file(directory = r".\data"):
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
         try:
-            proc.terminate()
-            proc.wait(timeout=3)
-            print(f"Killed process {proc.info['pid']} - {proc.info['name']}")
-        except psutil.NoSuchProcess:
-            print(f"Process {proc.info['pid']} no longer exists.")
-        except psutil.AccessDenied:
-            print(f"Permission denied to terminate process {proc.info['pid']}.")
-        except psutil.TimeoutExpired:
-            print(f"Timed out trying to terminate process {proc.info['pid']}.")
-
-    for file_path in files:
-        if os.path.exists(file_path):
-            for attempt in range(max_retries):
-                try:
-                    os.chmod(file_path, 0o777)
-                    os.remove(file_path)
-                    break
-                except PermissionError:
-                    print(f"PermissionError on {file_path}. Attempt {attempt + 1}/{max_retries}.")
-                    processes = find_process_locking_file(file_path)
-                    if processes:
-                        for index, proc in enumerate(processes, start=1):
-                            print(index, proc)
-                            kill_process(proc)
-                        time.sleep(wait_time)
-                    else:
-                        print(f"No process found locking the file {file_path}. Trying to delete again.")
-                        time.sleep(wait_time)
+            if os.path.isfile(file_path) and filename != "sample_original.xlsx":
+                os.chmod(file_path, 0o777)
+                os.remove(file_path)
+        except PermissionError:
+            print(f" PermissionError on {file_path}.")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup():
+    delete_the_test_excel_file()
     copy_test_excel_file()
     yield
-    delete_the_test_excel_file(files = [EXCEL_FILE_PATH, NEW_EXCEL_FILE_PATH, CSV_FILE_PATH])
+    delete_the_test_excel_file()
 
 
 def test_open_workbook_success(setup_teardown):
@@ -1208,7 +1176,6 @@ def test_merge_excels_multi_sheet_success(setup_teardown):
     sheets = workbook.sheetnames
     workbook.close()
     assert_that(sheets).is_length(6).contains("Sheet1_sample", "Offset_table_sample2", "Offset_table_sample", "Invalid_header_sample", "Invalid_header_sample2", "Sheet1_sample2")
-    delete_the_test_excel_file(files=[output_file, NEW_FILE])
 
 
 def test_merge_excels_single_sheet_success(setup_teardown):
@@ -1256,7 +1223,6 @@ def test_merge_excels_single_sheet_success(setup_teardown):
                 assert False, f"Data mismatch ({cell_value} != {expected_value})"
 
     workbook.close()
-    delete_the_test_excel_file(files=[r".\data\single_sheet_workbook1.xlsx", r".\data\single_sheet_workbook2.xlsx", output_file, ])
 
 
 def test_merge_excels_sheet_wise_success(setup_teardown):
@@ -1308,7 +1274,7 @@ def test_merge_excels_sheet_wise_success(setup_teardown):
         create_workbook(filename, sheets_data)
 
     list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
-    output_file = r".\data\merged_file_sheet_wise.xlsx"
+    output_file = r".\data\merged_file_sheet_wise1.xlsx"
     exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise", skip_bad_rows=True)
     assert_that(os.path.exists(output_file)).is_true()
 
@@ -1333,7 +1299,6 @@ def test_merge_excels_sheet_wise_success(setup_teardown):
                     assert False, f"Data mismatch ({cell_value} != {expected_value})"
 
     workbook.close()
-    delete_the_test_excel_file(files=[output_file, r".\data\sheet_wise_workbook2.xlsx", r".\data\sheet_wise_workbook1.xlsx"])
 
 
 def test_merge_excels_empty_files_list(setup_teardown):
@@ -1346,7 +1311,7 @@ def test_merge_excels_empty_files_list(setup_teardown):
 def test_merge_excels_invalid_merge_type(setup_teardown):
     with pytest.raises(ValueError) as exc_info:
         list_of_files = [r".\data\workbook1.xlsx", r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file.xlsx"
+        output_file = r".\data\merged_file1.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="invalid_merge_type")
 
     assert_that(str(exc_info.value)).is_equal_to("Invalid merge type. Use 'multiple_sheets', 'single_sheet', or 'sheet_wise'.")
@@ -1355,7 +1320,7 @@ def test_merge_excels_invalid_merge_type(setup_teardown):
 def test_merge_excels_multi_sheet_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
         list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file.xlsx"
+        output_file = r".\data\merged_file2.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="multiple_sheets")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1364,7 +1329,7 @@ def test_merge_excels_multi_sheet_file_not_found(setup_teardown):
 def test_merge_excels_single_sheet_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
         list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file.xlsx"
+        output_file = r".\data\merged_file3.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="single_sheet")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1373,7 +1338,7 @@ def test_merge_excels_single_sheet_file_not_found(setup_teardown):
 def test_merge_excels_sheet_wise_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
         list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file.xlsx"
+        output_file = r".\data\merged_file4.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1424,7 +1389,6 @@ def test_merge_excels_sheet_wise_index_error(setup_teardown):
 
     with pytest.warns(UserWarning, match="Skipping"):
         list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
-        output_file = r".\data\merged_file_sheet_wise.xlsx"
+        output_file = r".\data\merged_file_sheet_wise2.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
 
-    delete_the_test_excel_file(files=[r".\data\sheet_wise_workbook2.xlsx", r".\data\sheet_wise_workbook1.xlsx"])
