@@ -1,5 +1,6 @@
 import re
 import os
+import warnings
 from robot.api import logger
 from robot.version import get_version
 from robot.api.deco import keyword, not_keyword
@@ -1575,6 +1576,7 @@ class ExcelSage:
         if merge_type not in ["multiple_sheets", "single_sheet", "sheet_wise"]:
             raise ValueError("Invalid merge type. Use 'multiple_sheets', 'single_sheet', or 'sheet_wise'.")
 
+
         writer = pd.ExcelWriter(output_filename, engine='openpyxl')
 
         if merge_type == "multiple_sheets":
@@ -1611,29 +1613,30 @@ class ExcelSage:
             merged_df.to_excel(writer, sheet_name="Merged_Sheet", index=False)
 
         elif merge_type == "sheet_wise":
-            # Case 3: Merging Excel files sheet-wise
-            max_sheets = max([len(pd.ExcelFile(f).sheet_names) for f in file_list])
-
-            for i in range(max_sheets):
-                merged_df = pd.DataFrame()
+                # Case 3: Merging Excel files sheet-wise
                 for file_path in file_list:
                     if not os.path.exists(file_path):
                         raise ExcelFileNotFoundError(file_path)
 
-                    with pd.ExcelFile(file_path) as excel_file:
-                        try:
-                            sheet_name = excel_file.sheet_names[i]
-                            df = pd.read_excel(file_path, sheet_name=sheet_name)
-                            merged_df = pd.concat([merged_df, df], ignore_index=True, sort=False)
-                        except IndexError:
-                            logger.warn(f"File {file_path} does not have sheet {i + 1}. Skipping.")
-                        except Exception as e:
-                            if skip_bad_rows:
-                                logger.warn(f"Skipping rows with issues in sheet {i + 1} from {file_path}")
-                            else:
-                                raise e
+                max_sheets = max([len(pd.ExcelFile(f).sheet_names) for f in file_list])
 
-                merged_df.to_excel(writer, sheet_name=f"Sheet_{i + 1}", index=False)
+                for i in range(max_sheets):
+                    merged_df = pd.DataFrame()
+                    for file_path in file_list:
+                        with pd.ExcelFile(file_path) as excel_file:
+                            try:
+                                sheet_name = excel_file.sheet_names[i]
+                                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                                merged_df = pd.concat([merged_df, df], ignore_index=True, sort=False)
+                            except IndexError:
+                                warnings.warn(f"File {file_path} does not have sheet {i + 1}. Skipping.", category=UserWarning)
+                            except Exception as e:
+                                if skip_bad_rows:
+                                    logger.warn(f"Skipping rows with issues in sheet {i + 1} from {file_path}")
+                                else:
+                                    raise e
+
+                    merged_df.to_excel(writer, sheet_name=f"Sheet_{i + 1}", index=False)
 
         writer.close()
         logger.info(f"Merged Excel created: {output_filename}")
