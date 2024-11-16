@@ -1,9 +1,11 @@
+from collections import Counter
 import time
 from src.ExcelSage import *
 from assertpy import assert_that
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
 from openpyxl.worksheet.protection import SheetProtection
+from openpyxl.utils import cell
 from openpyxl.styles import Color
 import openpyxl as xl
 import pytest
@@ -531,20 +533,20 @@ def test_delete_column_invalid_column_index(setup_teardown):
 
 
 @pytest.mark.parametrize("column_name, expected_length, expected_values, output_format", [
-    ("A", 52, ["Tommie", "Nereida", "Stasia"], "list"),
-    (["A", "B"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "list"),
-    ("First Name", 52, ["Tommie", "Nereida", "Stasia"], "list"),
-    (["First Name", "Last Name"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "list"),
+    ("A", 51, ["Tommie", "Nereida", "Stasia"], "list"),
+    (["A", "B"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "list"),
+    ("First Name", 51, ["Tommie", "Nereida", "Stasia"], "list"),
+    (["First Name", "Last Name"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "list"),
 
-    ("A", 52, [["Tommie", "Nereida", "Stasia"]], "dict"),
-    (["A", "B"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "dict"),
-    ("First Name", 52, [["Tommie", "Nereida", "Stasia"]], "dict"),
-    (["First Name", "Last Name"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "dict"),
+    ("A", 51, [["Tommie", "Nereida", "Stasia"]], "dict"),
+    (["A", "B"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "dict"),
+    ("First Name", 51, [["Tommie", "Nereida", "Stasia"]], "dict"),
+    (["First Name", "Last Name"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "dict"),
 
-    ("A", 52, ["Tommie", "Nereida", "Stasia"], "DataFrame"),
-    (["A", "B"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "DataFrame"),
-    ("First Name", 52, ["Tommie", "Nereida", "Stasia"], "DataFrame"),
-    (["First Name", "Last Name"], 52, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "DataFrame")
+    ("A", 51, ["Tommie", "Nereida", "Stasia"], "DataFrame"),
+    (["A", "B"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "DataFrame"),
+    ("First Name", 51, ["Tommie", "Nereida", "Stasia"], "DataFrame"),
+    (["First Name", "Last Name"], 51, [["Tommie", "Nereida", "Stasia"], ["Mccrystal", "Partain", "Hanner"]], "DataFrame")
 ])
 def test_get_column_values_success(setup_teardown, column_name, expected_length, expected_values, output_format):
     exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
@@ -948,7 +950,7 @@ def test_find_and_replace_success(setup_teardown, occurence, expected_value):
         assert_that(cell).is_equal_to(expected_value[1])
 
     workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
-    sheet = workbook.active
+    sheet = workbook['Sheet1']
 
     if isinstance(cell, list):
         for i in cell:
@@ -1392,3 +1394,289 @@ def test_merge_excels_sheet_wise_index_error(setup_teardown):
         output_file = r".\data\merged_file_sheet_wise2.xlsx"
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
 
+
+def test_merge_cells_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.merge_cells(cell_range='A1:D4', sheet_name="Invalid_header")
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook['Invalid_header']
+
+    range_to_check = 'A1:D4'
+    start_cell, end_cell = range_to_check.split(':')
+    merged_cells = sheet.merged_cells.ranges
+    is_merged = False
+
+    for merged_range in merged_cells:
+        start_row, start_col = cell.coordinate_to_tuple(start_cell)
+        end_row, end_col = cell.coordinate_to_tuple(end_cell)
+
+        if (merged_range.min_row <= start_row <= merged_range.max_row and
+            merged_range.min_col <= start_col <= merged_range.max_col and
+            merged_range.min_row <= end_row <= merged_range.max_row and
+            merged_range.min_col <= end_col <= merged_range.max_col):
+            is_merged = True
+            break
+
+    assert_that(is_merged).is_true()
+    sheet.unmerge_cells(range_to_check)
+    workbook.save(EXCEL_FILE_PATH)
+    workbook.close()
+
+
+def test_merge_cells_invalid_cell_range1(setup_teardown):
+    with pytest.raises(InvalidCellRangeError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.merge_cells(cell_range='AASGD1:D4', sheet_name="Invalid_header")
+
+    assert_that(str(exc_info.value)).is_equal_to("AASGD1:D4 is not a valid coordinate or range")
+
+
+def test_merge_cells_invalid_cell_range2(setup_teardown):
+    with pytest.raises(InvalidCellRangeError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.merge_cells(cell_range='D4:A1', sheet_name="Invalid_header")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid cell range: D4:A1. The start cell must be smaller than the end cell.")
+
+
+def test_unmerge_cells_success(setup_teardown):
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook['Invalid_header']
+
+    sheet.merge_cells('C2:D6')
+    workbook.save(EXCEL_FILE_PATH)
+    workbook.close()
+
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.unmerge_cells(cell_range='C2:D6', sheet_name="Invalid_header")
+
+    workbook = excel.load_workbook(filename=EXCEL_FILE_PATH)
+    sheet = workbook['Invalid_header']
+
+    range_to_check = 'C2:D6'
+    start_cell, end_cell = range_to_check.split(':')
+    merged_cells = sheet.merged_cells.ranges
+    is_merged = False
+
+    for merged_range in merged_cells:
+        start_row, start_col = cell.coordinate_to_tuple(start_cell)
+        end_row, end_col = cell.coordinate_to_tuple(end_cell)
+
+        if (merged_range.min_row <= start_row <= merged_range.max_row and
+            merged_range.min_col <= start_col <= merged_range.max_col and
+            merged_range.min_row <= end_row <= merged_range.max_row and
+            merged_range.min_col <= end_col <= merged_range.max_col):
+            is_merged = True
+            break
+
+    workbook.close()
+    assert_that(is_merged).is_false()
+
+
+def test_unmerge_cells_invalid_cell_range1(setup_teardown):
+    with pytest.raises(InvalidCellRangeError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.unmerge_cells(cell_range='AASGD1:D4', sheet_name="Invalid_header")
+
+    assert_that(str(exc_info.value)).is_equal_to("AASGD1:D4 is not a valid coordinate or range")
+
+
+def test_unmerge_cells_invalid_cell_range2(setup_teardown):
+    with pytest.raises(InvalidCellRangeError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.unmerge_cells(cell_range='D4:A1', sheet_name="Invalid_header")
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid cell range: D4:A1. The start cell must be smaller than the end cell.")
+
+
+@pytest.mark.parametrize("column_name_or_letter, output_format, ascending, expected_index, expected_length, expected_value",[
+    ("A","list", True, 50, 51, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("A", "list", False, 49, 51, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125]),
+    ("First Name","list", True, 50, 51, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("First Name", "list", False, 49, 51, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125]),
+    ("A", "dict", True, [('First Name', 'Last Name', 'Gender', 'Country', 'Age', 'Date', 'Salary'), -1], 7, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("A", "dict", False, [('First Name', 'Last Name', 'Gender', 'Country', 'Age', 'Date', 'Salary'), -2], 7, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125]),
+    ("First Name", "dict", True, [('First Name', 'Last Name', 'Gender', 'Country', 'Age', 'Date', 'Salary'), -1], 7, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("First Name", "dict", False, [('First Name', 'Last Name', 'Gender', 'Country', 'Age', 'Date', 'Salary'), -2], 7, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125]),
+    ("A", "Dataframe", True, 50, 51, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("A", "Dataframe", False, 49, 51, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125]),
+    ("First Name", "Dataframe", True, 50, 51, ['Willodean', 'Harn', 'Female', 'United States', 39 , '16/08/2016', 3567]),
+    ("First Name", "Dataframe", False, 49, 51, ['Angelyn', 'Vong', 'Female', 'United States', 29, '21/05/2015', 6125])
+    ])
+def test_sort_columns_success(column_name_or_letter, output_format, ascending, expected_index, expected_length, expected_value, setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    data = exl.sort_column(column_name_or_letter=column_name_or_letter, output_format=output_format, asc=ascending, starting_cell='D6', sheet_name='Offset_table')
+
+    if isinstance(data, list):
+        assert_that(data).is_length(expected_length)
+        assert_that(data[expected_index]).is_equal_to(expected_value)
+    elif isinstance(data, dict):
+        for index, col in enumerate(expected_index[0]):
+            assert_that(data[col][expected_index[-1]]).is_equal_to(expected_value[index])
+    else:
+        row_count, column_count = data.shape
+        assert_that(row_count).is_equal_to(expected_length)
+        assert_that(column_count).is_equal_to(7)
+        is_present = data.loc[expected_index].tolist() == expected_value
+        assert_that(is_present).is_true()
+
+
+def test_sort_columns_invalid_output_format(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.sort_column(column_name_or_letter='D', output_format="invalid", starting_cell='D6', sheet_name='Offset_table')
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid output format. Use 'list', 'dict', or 'dataframe'.")
+
+
+def test_sort_columns_invalid_column_name(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.sort_column(column_name_or_letter=INVALID_CELL_ADDRESS, starting_cell='D6', sheet_name='Offset_table')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Invalid column name or letter: '{INVALID_CELL_ADDRESS}'")
+
+
+def test_sort_columns_invalid_cell_address(setup_teardown):
+    with pytest.raises(InvalidCellAddressError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.sort_column(column_name_or_letter='A', starting_cell=INVALID_CELL_ADDRESS, sheet_name='Offset_table')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Cell '{INVALID_CELL_ADDRESS}' doesn't exists.")
+
+
+def test_sort_columns_none_header(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.sort_column(column_name_or_letter='A', starting_cell='A1', sheet_name='Sheet1')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Sheet1 does not have a valid string header: 'None' found.")
+
+
+def test_sort_columns_column_out_of_bound(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.sort_column(column_name_or_letter='ZZZ', starting_cell='A1', sheet_name='Sheet1')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Column letter 'ZZZ' is out of bounds for the provided sheet.")
+
+
+@pytest.mark.parametrize("columns, output_format, expected_length, expected_value", [
+    ("A", "list", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2})),
+    ("Last Name", "list", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2})),
+    ("A", "dict", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2})),
+    ("First Name", "dict", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2})),
+    ("B", "dataframe", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2})),
+    ("Last Name", "dataframe", 4, Counter({('Kelsie', 'Wachtel', 'Female', 'France', 27, '16/08/2016', 8642): 2, ('Loreta', 'Curren', 'Female', 'France', 26, '21/05/2015', 9654): 2}))
+])
+def test_find_duplicates_success(columns, output_format, expected_length, expected_value, setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    data = exl.find_duplicates(column_names_or_letters=columns, starting_cell='D6', sheet_name='Offset_table', output_format=output_format)
+
+    if isinstance(data, list):
+        assert_that(data).is_length(expected_length)
+        counts = Counter(tuple(row) for row in data)
+        assert_that(counts == expected_value).is_true()
+    elif isinstance(data, dict):
+        tuples_from_dict = Counter(zip(
+            data['First Name'],
+            data['Last Name'],
+            data['Gender'],
+            data['Country'],
+            data['Age'],
+            data['Date'],
+            data['Salary']
+        ))
+        assert_that(tuples_from_dict == expected_value).is_true()
+    else:
+        df_tuples = [tuple(row) for row in data.to_records(index=False)]
+        counts = Counter(df_tuples)
+        assert_that(counts == expected_value).is_true()
+
+
+def test_find_duplicates_invalid_column_name(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_duplicates(column_names_or_letters=INVALID_CELL_ADDRESS, starting_cell='D6', sheet_name='Offset_table')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Invalid column name or letter: '{INVALID_CELL_ADDRESS}'")
+
+
+def test_find_duplicates_invalid_cell_address(setup_teardown):
+    with pytest.raises(InvalidCellAddressError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_duplicates(column_names_or_letters='A', starting_cell=INVALID_CELL_ADDRESS, sheet_name='Offset_table')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Cell '{INVALID_CELL_ADDRESS}' doesn't exists.")
+
+
+def test_find_duplicates_none_header(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_duplicates(column_names_or_letters='A', starting_cell='A1', sheet_name='Sheet1')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Sheet1 does not have a valid string header: 'None' found.")
+
+
+def test_find_duplicates_column_out_of_bound(setup_teardown):
+    with pytest.raises(ValueError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        exl.find_duplicates(column_names_or_letters='ZZZ', starting_cell='A1', sheet_name='Sheet1')
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Column letter 'ZZZ' is out of bounds for the provided sheet.")
+
+
+def test_compare_excels_success(setup_teardown):
+    source_excel_config = {'sheet_name': 'Sheet1', 'starting_cell': 'A1', 'columns': ['First Name', 'Last Name']}
+    target_excel_config = {'sheet_name': 'Offset_table', 'starting_cell': 'D6', 'columns': ['First Name', 'Last Name']}
+    data = exl.compare_excels(source_excel=EXCEL_FILE_PATH, target_excel=EXCEL_FILE_PATH, source_excel_config=source_excel_config, target_excel_config=target_excel_config)
+
+    expected_data = {
+    'First Name': ['Lester', 'Mark', 'Mark', 'Mark', 'Many', 'Marvel', 'Marcel', 'Jona', 'Felisa'],
+    'Last Name': ['Grindle', 'Zabriskie', 'Hail', 'Cail', 'Cuccia', 'Hail', 'Zabriskie', 'Grindle', 'Cail'],
+    'Excel_Source': ['Source', 'Source', 'Source', 'Source', 'Source', 'Target', 'Target', 'Target', 'Target']
+    }
+    expected_df = pd.DataFrame(expected_data)
+    df = data[expected_df.columns]
+    df_sorted = df.sort_values(by=df.columns.tolist()).reset_index(drop=True)
+    expected_df_sorted = expected_df.sort_values(by=expected_df.columns.tolist()).reset_index(drop=True)
+
+    assert_that(df_sorted.equals(expected_df_sorted)).is_true()
+
+
+def test_compare_excels_file_not_found(setup_teardown):
+    with pytest.raises(ExcelFileNotFoundError) as exc_info:
+        exl.compare_excels(source_excel=INVALID_EXCEL_FILE_PATH, target_excel=EXCEL_FILE_PATH)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
+
+
+def test_fetch_sheet_data_invalid_cell_address(setup_teardown):
+    with pytest.raises(InvalidCellAddressError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        source_excel_config = {'sheet_name': 'Sheet1', 'starting_cell': INVALID_CELL_ADDRESS, 'columns': ['First Name', 'Last Name']}
+        target_excel_config = {'sheet_name': 'Offset_table', 'starting_cell': 'D6', 'columns': ['First Name', 'Last Name']}
+        exl.compare_excels(source_excel=EXCEL_FILE_PATH, target_excel=EXCEL_FILE_PATH, source_excel_config=source_excel_config, target_excel_config=target_excel_config)
+
+    assert_that(str(exc_info.value)).is_equal_to(f"Cell '{INVALID_CELL_ADDRESS}' doesn't exists.")
+
+
+def test_fetch_sheet_data_invalid_column_name(setup_teardown):
+    with pytest.raises(InvalidColumnNameError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        source_excel_config = {'sheet_name': 'Sheet1', 'starting_cell': 'A1', 'columns': ['Invalid_column', 'Last Name']}
+        target_excel_config = {'sheet_name': 'Offset_table', 'starting_cell': 'D6', 'columns': ['First Name', 'Last Name']}
+        exl.compare_excels(source_excel=EXCEL_FILE_PATH, target_excel=EXCEL_FILE_PATH, source_excel_config=source_excel_config, target_excel_config=target_excel_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Invalid columns. Columns not found: ['Invalid_column'] in sheet 'Sheet1'.")
+
+
+def test_fetch_sheet_data_column_mismatch(setup_teardown):
+    with pytest.raises(ColumnMismatchError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+        source_excel_config = {'sheet_name': 'Sheet1', 'starting_cell': 'A1', 'columns': ['First Name', 'Salary']}
+        target_excel_config = {'sheet_name': 'Offset_table', 'starting_cell': 'D6', 'columns': ['First Name', 'Last Name']}
+        exl.compare_excels(source_excel=EXCEL_FILE_PATH, target_excel=EXCEL_FILE_PATH, source_excel_config=source_excel_config, target_excel_config=target_excel_config)
+
+    assert_that(str(exc_info.value)).is_equal_to("Column mismatch found in excel files.\nMissing in source: {'Last Name'}\nMissing in target: {'Salary'}")
