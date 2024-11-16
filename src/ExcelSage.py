@@ -2,7 +2,6 @@ import re
 import os
 import warnings
 from robot.api import logger
-from robot.version import get_version
 from robot.api.deco import keyword, not_keyword
 import pandas as pd
 from pandas import DataFrame
@@ -15,7 +14,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, Protecti
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = get_version()
+__version__ = '1.0.2'
 
 
 class ExcelError(Exception): ...
@@ -212,19 +211,24 @@ class ExcelSage:
     @not_keyword
     def __argument_type_checker(self, arg_list: Dict[str, List[Any]]) -> None:
         for arg_name, value in arg_list.items():
+            if isinstance(value[1], tuple):
+                expected_type_names = "', or '".join(t.__name__ for t in value[1])
+            else:
+                expected_type_names = value[1].__name__
+
             if len(value) == 3:
                 if value[0] is not None and not isinstance(value[0], value[1]):
-                    raise TypeError(f"'{arg_name}' must be a {value[1].__name__}, got '{type(value[0]).__name__}'")
+                    raise TypeError(f"'{arg_name}' must be a '{expected_type_names}', got '{type(value[0]).__name__}'")
             else:
                 if not isinstance(value[0], value[1]):
-                    raise TypeError(f"'{arg_name}' must be a {value[1].__name__}, got '{type(value[0]).__name__}'")
+                    raise TypeError(f"'{arg_name}' must be a '{expected_type_names}', got '{type(value[0]).__name__}'")
 
     @keyword
     def open_workbook(self, workbook_name: str, **kwargs) -> Workbook:
         """
         The ``Open Workbook`` keyword opens an Excel file by its name, checks if the file exists, and raises an ``ExcelFileNotFoundError`` if it doesn't. It uses openpyxl's ``load_workbook`` to load the workbook, allowing additional options via ``**kwargs``. Once the workbook is opened, it is set as the active workbook and logged. The keyword returns the loaded workbook object for further use.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -248,7 +252,7 @@ class ExcelSage:
         """
         The ``Create Workbook`` keyword creates a new Excel workbook with the option to write data into the first sheet during the creation process. It also includes an option to overwrite the file if needed.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -297,7 +301,7 @@ class ExcelSage:
         """
         The ``Get Sheets`` keyword returns a list of all sheet names in the active workbook. It  raises a ``WorkbookNotOpenError`` if no workbook is currently active. If the workbook is open, the keyword retrieves and returns the list of sheet names from the active workbook.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -320,7 +324,7 @@ class ExcelSage:
 
         It then checks if the ``sheet_name`` already exists in the workbook, raising a ``SheetAlreadyExistsError`` if it does. If a ``sheet_pos`` is provided, the keyword ensures that it is within the valid range of sheet positions. If the position is invalid, an ``InvalidSheetPositionError`` is raised, indicating the position and the maximum allowed value.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -373,7 +377,7 @@ class ExcelSage:
         """
         The ``Delete Sheet`` keyword removes a specified sheet from the active workbook. If no sheet name is provided, the currently active sheet is used. It retrieves the sheet to delete by name, removes it from the workbook, saves the workbook with the changes and returns the sheet name.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -403,7 +407,7 @@ class ExcelSage:
 
         If an invalid format is provided, a ``ValueError`` is raised.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -470,7 +474,7 @@ class ExcelSage:
         ``SheetDoesntExistsError``. It also verifies that the ``new_name`` does not already exist in the workbook; if
         it does, a ``SheetAlreadyExistsError`` is raised.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -511,7 +515,7 @@ class ExcelSage:
         If a ``ValueError`` is raised (for example, if the cell address is invalid), the keyword raises an
         ``InvalidCellAddressError``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -539,7 +543,7 @@ class ExcelSage:
         is currently open by verifying the presence of an active workbook. If no workbook is open, it raises a
         ``WorkbookNotOpenError``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -564,7 +568,7 @@ class ExcelSage:
         the keyword saves it to the file specified, ensuring that any changes made to the workbook are persisted.
         This keyword does not return anything, as it simply saves the workbook.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -589,7 +593,7 @@ class ExcelSage:
         a ``SheetDoesntExistsError`` is raised.  This allows subsequent operations to be performed on the newly
         selected active sheet.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -621,7 +625,7 @@ class ExcelSage:
         If the provided ``cell_name`` is invalid, a ``ValueError`` is raised, which is caught and re-raised as an
         ``InvalidCellAddressError``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -651,7 +655,7 @@ class ExcelSage:
         The ``Get Column Count`` keyword retrieves the total number of columns in a specified sheet from the active workbook.
         If no sheet name is provided, it defaults to the currently active sheet.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -696,7 +700,7 @@ class ExcelSage:
         If the exclude_header flag is set to True, the keyword reduces the row count by 1 to exclude the header row,
         ensuring that the result is never negative.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -760,7 +764,7 @@ class ExcelSage:
 
         Once validated, the row data is appended to the sheet, which automatically places the data in the next available row. After appending the data, the workbook is saved to persist the changes.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -785,7 +789,7 @@ class ExcelSage:
         The ``Insert Row`` keyword inserts a new row at a specified index in an Excel sheet and populates that row with the provided data.
         The keyword validates the input and ensures that the row index is within Excel's allowable limits (1 to 1,048,576).
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -823,7 +827,7 @@ class ExcelSage:
         The row index must be within Excel's allowable range (1 to 1,048,576). If the index is out of bounds,
         the keyword raises an ``InvalidRowIndexError``. After deleting the row, the workbook is saved to persist the changes.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -851,7 +855,7 @@ class ExcelSage:
 
         The column data will be appended in the next available column (after the last used column). After appending the data, the workbook is saved to persist the changes.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -888,7 +892,7 @@ class ExcelSage:
         The ``Insert Column`` keyword inserts a new column at a specified index in an Excel sheet and populates that column with the provided data.
         The keyword validates the input and ensures that the column index is within Excel's allowable limits (1 to 16,384).
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -927,7 +931,7 @@ class ExcelSage:
         The column index must be within Excel's allowable range (1 to 16,384). If the index is out of bounds,
         the keyword raises an ``InvalidColumnIndexError``. After deleting the column, the workbook is saved to persist the changes.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -957,7 +961,7 @@ class ExcelSage:
         You can also specify a starting cell (e.g., 'A3') from which the header and data start.
         The output format can be a list, dictionary, or pandas DataFrame.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1004,7 +1008,9 @@ class ExcelSage:
         # Validate and extract headers or column letters
         headers_to_fetch = []
         for col in column_names_or_letters:
-            if col.isalpha() and len(col) == 1:  # If it's a single letter (e.g., 'A', 'B')
+            if isinstance(col, str) and col in first_row:  # If header name is provided (e.g., 'Age', 'Name')
+                headers_to_fetch.append(col)
+            elif col.isalpha() and len(col) < 4:  # If it's a single letter (e.g., 'A', 'B')
                 col_index = column_index_from_string(col)
                 if col_index - 1 < len(first_row):
                     header = first_row[col_index - 1]
@@ -1015,8 +1021,6 @@ class ExcelSage:
                             f"Column letter '{col}' does not have a valid string header: '{header}' found.")
                 else:
                     raise ValueError(f"Column letter '{col}' is out of bounds for the provided sheet.")
-            elif isinstance(col, str) and col in first_row:  # If header name is provided (e.g., 'Age', 'Name')
-                headers_to_fetch.append(col)
             else:
                 raise ValueError(f"Invalid column name or letter: '{col}'")
 
@@ -1041,7 +1045,7 @@ class ExcelSage:
         The row(s) can be specified by their index (starting from 1 for the first row).
         The output format can be a list or a dictionary.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1087,7 +1091,7 @@ class ExcelSage:
         """
         The ``Protect Sheet`` keyword protects a specified sheet in the active workbook with a password. If the sheet is already protected, it raises a ``SheetAlreadyProtected`` error. Otherwise, it applies the password protection and saves the workbook.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1113,7 +1117,7 @@ class ExcelSage:
         The ``Unprotect Sheet`` keyword removes password protection from a specified sheet in the active workbook.
         If the sheet is not protected, it raises a ``SheetNotProtectedError`` error.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1144,7 +1148,7 @@ class ExcelSage:
         sheets, restricting various editing capabilities like inserting or deleting
         rows, columns, and modifying cell formats.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1199,7 +1203,7 @@ class ExcelSage:
 
         Optionally, individual sheet protections can also be removed by specifying ``unprotect_sheets=True``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1234,7 +1238,7 @@ class ExcelSage:
         """
         The ``Clear Sheet`` keyword clears all cell values in the specified sheet of the active workbook. Once the sheet is cleared, the keyword saves the workbook.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1257,7 +1261,7 @@ class ExcelSage:
         """
         The ``Copy Sheet`` keyword creates a copy of an existing sheet in the workbook, giving it a new name. It first validates that the workbook is open and checks that the source sheet exists. If the new sheet name is invalid or already exists, it raises an appropriate error. The keyword copies the source sheet, renames the copy, and saves the workbook.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1296,7 +1300,7 @@ class ExcelSage:
         The ``Find Value`` keyword searches for a specified value in a sheet and can return either the first occurrence or all occurrences, depending on the occurence parameter.
         If the value is found, the keyword returns the cell coordinate(s). If no match is found, it returns ``None``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1339,7 +1343,7 @@ class ExcelSage:
         The ``occurence`` parameter determines whether only the first occurrence or all occurrences are replaced.
         If the value is found, the keyword returns the cell coordinate(s) where the replacement was made. If no match is found, it returns ``None``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1390,7 +1394,7 @@ class ExcelSage:
         """
         The ``Format Cell`` keyword allows formatting of a specified cell in the active workbook. It accepts a variety of formatting options, including font size, color, alignment, background color, borders, and text formatting (bold, italic, underline, etc.). Invalid parameters trigger specific exceptions such as ``InvalidColorError``, ``InvalidAlignmentError``, or ``InvalidBorderStyleError``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1554,7 +1558,7 @@ class ExcelSage:
             The function handles cases where some files may not have as many sheets, logging a warning and skipping those sheets.
             The optional ``skip_bad_rows`` flag allows the keyword to skip problematic rows if set to ``True``.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1647,7 +1651,7 @@ class ExcelSage:
         The ``Merge Cells`` keyword merges a specified range of cells into one in the active workbook.
         The merged cells will span across the range provided by the ``cell_range`` argument.
 
-        Examples:
+        *Examples*
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
@@ -1677,7 +1681,7 @@ class ExcelSage:
         The ``Unmerge Cells`` keyword unmerges a specified range of cells into one in the active workbook.
         The unmerged cells will span across the range provided by the ``cell_range`` argument.
 
-        Examples:
+        *Examples*
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
@@ -1708,7 +1712,7 @@ class ExcelSage:
         The ``Sort Column`` keyword sorts the specified column in the sheet starting from a specific cell.
         The column can be specified by name (e.g., 'Salary') or by letter (e.g., 'A'), and the sorted values can be returned as a list, dictionary, or DataFrame.
 
-        Examples:
+        *Examples*
             | ***** Settings *****
             | Library    ExcelSage
             |
@@ -1737,15 +1741,19 @@ class ExcelSage:
         headers_range = sheet.iter_rows(min_row=start_row, max_row=start_row, min_col=start_col_index, values_only=True)
         first_row = next(headers_range)
 
-        if column_name_or_letter.isalpha() and len(column_name_or_letter) == 1:
-            col_index = column_index_from_string(column_name_or_letter)
-            header = first_row[col_index - start_col_index]
-            if not isinstance(header, str):
-                raise ValueError(
-                    f"Column letter '{column_name_or_letter}' does not have a valid string header: '{header}' found.")
-            header_to_fetch = header
-        elif column_name_or_letter in first_row:  # If header name is provided (e.g., 'Salary', 'Age')
+        if column_name_or_letter in first_row:
             header_to_fetch = column_name_or_letter
+        elif column_name_or_letter.isalpha() and len(column_name_or_letter) < 4:
+            col_index = column_index_from_string(column_name_or_letter)
+            if col_index - 1 < len(first_row):
+                header = first_row[col_index - 1]
+                for col in first_row:
+                    if not isinstance(col, str):
+                        raise ValueError(
+                            f"{sheet_name} does not have a valid string header: '{col}' found.")
+                header_to_fetch = header
+            else:
+                raise ValueError(f"Column letter '{column_name_or_letter}' is out of bounds for the provided sheet.")
         else:
             raise ValueError(f"Invalid column name or letter: '{column_name_or_letter}'")
 
@@ -1775,7 +1783,7 @@ class ExcelSage:
         It can check for duplicates based on either column names or column letters, and the results can be returned in different formats such as a list, dictionary, or pandas DataFrame.
         Additionally, you can specify a starting cell from which the headers begin, and filter duplicates from that point onward.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1821,19 +1829,18 @@ class ExcelSage:
 
             headers_to_fetch = []
             for col in column_names_or_letters:
-                if col.isalpha() and len(col) == 1:
+                if isinstance(col, str) and col in first_row:
+                    headers_to_fetch.append(col)
+                elif col.isalpha() and len(col) < 4:
                     col_index = column_index_from_string(col)
                     if col_index - 1 < len(first_row):
                         header = first_row[col_index - 1]
-                        if isinstance(header, str):
+                        for col in first_row:
+                            if not isinstance(col, str):
+                                raise ValueError(f"{sheet_name} does not have a valid string header: '{col}' found.")
                             headers_to_fetch.append(header)
-                        else:
-                            raise ValueError(
-                                f"Column letter '{col}' does not have a valid string header: '{header}' found.")
                     else:
                         raise ValueError(f"Column letter '{col}' is out of bounds for the provided sheet.")
-                elif isinstance(col, str) and col in first_row:
-                    headers_to_fetch.append(col)
                 else:
                     raise ValueError(f"Invalid column name or letter: '{col}'")
 
@@ -1846,7 +1853,7 @@ class ExcelSage:
             duplicates = df[df.duplicated(keep=False)]
 
         if output_format.lower().strip() == "list":
-            return [duplicates[col].tolist() for col in duplicates.columns]
+            return duplicates.values.tolist()
         elif output_format.lower().strip() == "dict":
             return duplicates.to_dict(orient='list')
         elif output_format.lower().strip() == "dataframe":
@@ -1859,7 +1866,7 @@ class ExcelSage:
         The ``Compare Excels`` keyword compares two Excel sheets and identifies differences in the data.
         The comparison is based on the values of the specified columns, and the output includes rows that are unique to either of the two sheets. It handles the comparison intelligently, providing options to configure which sheet, starting cell, and columns should be compared for each Excel file.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1937,7 +1944,7 @@ class ExcelSage:
         """
         The `Export To CSV` keyword reads the data from a specified sheet in an Excel file and exports it to a CSV file.
 
-        Examples:
+        *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
@@ -1965,7 +1972,7 @@ class ExcelSage:
         By default, it starts from cell A1, but the starting cell can be customized.
         It returns a list of column headers.
 
-        Examples:
+        *Examples*
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
