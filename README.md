@@ -3,6 +3,8 @@
 [![PyPI version](https://badge.fury.io/py/robotframework-excelsage.svg)](https://badge.fury.io/py/robotframework-excelsage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/robotframework-excelsage.svg)](https://pypi.org/project/robotframework-excelsage/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/robotframework-excelsage?period=total&units=international_system&left_color=gray&right_color=orange&left_text=downloads)](https://pepy.tech/project/robotframework-excelsage)
+
 
 ExcelSage is a Python-based library designed for interacting with Excel 2010 and above files in automation testing environments, specifically built for use with Robot Framework. The library provides comprehensive methods for manipulating Excel sheets, cells, rows, columns, and workbooks. This includes reading and writing data, modifying formatting, sheet protection, and more.
 
