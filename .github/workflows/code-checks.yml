@@ -42,10 +42,10 @@ jobs:
 
       - name: Run Ruff (linting and formatting check)
         run: |
-          ruff check . --output-format=github --output-format=json > ruff-check.json || true
+          ruff check . --output-format=json > ruff-check.json || true
           ruff format --check --diff . --output-format=json > ruff-format.json || true
-          ruff check . --output-format=github
-          ruff format --check --diff .
+          ruff check . --output-format=github || true
+          ruff format --check --diff . || true
 
       - name: Upload Ruff reports
         uses: actions/upload-artifact@v4

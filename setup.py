@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-with open('README.md', 'r') as f:
+with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
@@ -14,22 +14,22 @@ setup(
     author="Deekshith Poojary",
     maintainer="Deekshith Poojary",
     author_email="deekshithpoojary355@gmail.com",
-    license='Apache License 2.0',
+    license="Apache License 2.0",
     packages=find_packages(),
     python_requires=">=3.6",
     keywords="excel testing testautomation robotframework robotframework-excelsage robotframework-excellibrary robotframework-excellib",
     install_requires=[
-        'pyarrow',
-        'pandas>=2.2.0',
-        'openpyxl>=3.1.0',
-        'robotframework>=5.0.1'
+        "pyarrow",
+        "pandas>=2.2.0",
+        "openpyxl>=3.1.0",
+        "robotframework>=5.0.1",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-        'Framework :: Robot Framework :: Library',
-        'Intended Audience :: Developers',
-        'Topic :: Software Development :: Testing'
+        "Framework :: Robot Framework :: Library",
+        "Intended Audience :: Developers",
+        "Topic :: Software Development :: Testing",
     ],
 )
