@@ -1,25 +1,52 @@
 from collections import Counter
-import time
-from src.ExcelSage import *
+from src.ExcelSage import (
+    ExcelSage,
+    ExcelFileNotFoundError,
+    FileAlreadyExistsError,
+    WorkbookNotOpenError,
+    SheetAlreadyExistsError,
+    InvalidSheetPositionError,
+    SheetDoesntExistsError,
+    InvalidCellAddressError,
+    InvalidRowIndexError,
+    InvalidColumnIndexError,
+    InvalidColumnNameError,
+    ColumnMismatchError,
+    InvalidCellRangeError,
+    SheetAlreadyProtectedError,
+    SheetNotProtectedError,
+    WorkbookAlreadyProtectedError,
+    WorkbookNotProtectedError,
+    InvalidSheetNameError,
+    InvalidColorError,
+    InvalidAlignmentError,
+    InvalidBorderStyleError,
+)
 from assertpy import assert_that
 from openpyxl import Workbook
+import openpyxl as excel
+import os
+from pathlib import Path
+from openpyxl.utils import get_column_letter
 from openpyxl.workbook.protection import WorkbookProtection
 from openpyxl.worksheet.protection import SheetProtection
 from openpyxl.utils import cell
-from openpyxl.styles import Color
 import openpyxl as xl
 import pytest
 import shutil
-import psutil
 from pandas import DataFrame
 import pandas as pd
 
+# Get the project root directory (parent of tests directory)
+PROJECT_ROOT = Path(__file__).parent.parent
+DATA_DIR = str(PROJECT_ROOT / "data")
+
 exl = ExcelSage()
 
-EXCEL_FILE_PATH = r".\data\sample.xlsx"
-CSV_FILE_PATH = r".\data\sample.csv"
-INVALID_EXCEL_FILE_PATH = r"..\data\invalid_file.xlsx"
-NEW_EXCEL_FILE_PATH = r".\data\new_excel.xlsx"
+EXCEL_FILE_PATH = os.path.join(DATA_DIR, "sample.xlsx")
+CSV_FILE_PATH = os.path.join(DATA_DIR, "sample.csv")
+INVALID_EXCEL_FILE_PATH = os.path.join(str(PROJECT_ROOT.parent), "data", "invalid_file.xlsx")
+NEW_EXCEL_FILE_PATH = os.path.join(DATA_DIR, "new_excel.xlsx")
 INVALID_SHEET_NAME = "invalid[]sheet"
 INVALID_CELL_ADDRESS = "AAAA1"
 INVALID_ROW_INDEX = 1012323486523
@@ -33,13 +60,17 @@ def setup_teardown(scope='function', autouse=False):
         exl.close_workbook()
 
 
-def copy_test_excel_file(destination_file = r".\data\sample.xlsx"):
-    source_file = r".\data\sample_original.xlsx"
+def copy_test_excel_file(destination_file=None):
+    if destination_file is None:
+        destination_file = os.path.join(DATA_DIR, "sample.xlsx")
+    source_file = os.path.join(DATA_DIR, "sample_original.xlsx")
     shutil.copy(source_file, destination_file)
     return destination_file
 
 
-def delete_the_test_excel_file(directory = r".\data"):
+def delete_the_test_excel_file(directory=None):
+    if directory is None:
+        directory = DATA_DIR
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
         try:
@@ -610,7 +641,7 @@ def test_get_column_values_column_out_of_bound(setup_teardown):
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         exl.get_column_values(column_names_or_letters="Z", sheet_name="Sheet1", starting_cell="A55", output_format="list")
 
-    assert_that(str(exc_info.value)).is_equal_to(f"Column letter 'Z' is out of bounds for the provided sheet.")
+    assert_that(str(exc_info.value)).is_equal_to("Column letter 'Z' is out of bounds for the provided sheet.")
 
 
 @pytest.mark.parametrize("row_index, expected_values, expected_length, output_format", [
@@ -1168,9 +1199,9 @@ def test_export_to_csv_file_already_exists(setup_teardown):
 
 
 def test_merge_excels_multi_sheet_success(setup_teardown):
-    NEW_FILE = copy_test_excel_file(destination_file = r".\data\sample2.xlsx")
+    NEW_FILE = copy_test_excel_file(destination_file=os.path.join(DATA_DIR, "sample2.xlsx"))
     list_of_files = [EXCEL_FILE_PATH, NEW_FILE]
-    output_file = r".\data\merged_file_multi_sheets.xlsx"
+    output_file = os.path.join(DATA_DIR, "merged_file_multi_sheets.xlsx")
     exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="multiple_sheets", skip_bad_rows=True)
     assert_that(os.path.exists(output_file)).is_true()
 
@@ -1182,12 +1213,12 @@ def test_merge_excels_multi_sheet_success(setup_teardown):
 
 def test_merge_excels_single_sheet_success(setup_teardown):
     data = {
-        r".\data\single_sheet_workbook1.xlsx": [
+        os.path.join(DATA_DIR, "single_sheet_workbook1.xlsx"): [
             ["Name", "Age"],
             ["Mark", 25],
             ["John", 30]
         ],
-        r".\data\single_sheet_workbook2.xlsx": [
+        os.path.join(DATA_DIR, "single_sheet_workbook2.xlsx"): [
             ["Name", "Age"],
             ["Dee", 26],
             ["Alex", 40]
@@ -1205,8 +1236,8 @@ def test_merge_excels_single_sheet_success(setup_teardown):
     for filename, workbook_data in data.items():
         create_workbook(filename, workbook_data)
 
-    list_of_files = [r".\data\single_sheet_workbook1.xlsx", r".\data\single_sheet_workbook2.xlsx"]
-    output_file = r".\data\merged_file_single_sheet.xlsx"
+    list_of_files = [os.path.join(DATA_DIR, "single_sheet_workbook1.xlsx"), os.path.join(DATA_DIR, "single_sheet_workbook2.xlsx")]
+    output_file = os.path.join(DATA_DIR, "merged_file_single_sheet.xlsx")
     exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="single_sheet", skip_bad_rows=True)
     assert_that(os.path.exists(output_file)).is_true()
 
@@ -1229,7 +1260,7 @@ def test_merge_excels_single_sheet_success(setup_teardown):
 
 def test_merge_excels_sheet_wise_success(setup_teardown):
     data = {
-        r".\data\sheet_wise_workbook1.xlsx": {
+        os.path.join(DATA_DIR, "sheet_wise_workbook1.xlsx"): {
             "Sheet1": [
                 ["Name", "Age"],
                 ["Mark", 25],
@@ -1241,7 +1272,7 @@ def test_merge_excels_sheet_wise_success(setup_teardown):
                 ["London", "UK"]
             ]
         },
-        r".\data\sheet_wise_workbook2.xlsx": {
+        os.path.join(DATA_DIR, "sheet_wise_workbook2.xlsx"): {
             "Sheet1": [
                 ["Name", "Age"],
                 ["Dee", 26],
@@ -1275,8 +1306,8 @@ def test_merge_excels_sheet_wise_success(setup_teardown):
     for filename, sheets_data in data.items():
         create_workbook(filename, sheets_data)
 
-    list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
-    output_file = r".\data\merged_file_sheet_wise1.xlsx"
+    list_of_files = [os.path.join(DATA_DIR, "sheet_wise_workbook1.xlsx"), os.path.join(DATA_DIR, "sheet_wise_workbook2.xlsx")]
+    output_file = os.path.join(DATA_DIR, "merged_file_sheet_wise1.xlsx")
     exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise", skip_bad_rows=True)
     assert_that(os.path.exists(output_file)).is_true()
 
@@ -1312,8 +1343,8 @@ def test_merge_excels_empty_files_list(setup_teardown):
 
 def test_merge_excels_invalid_merge_type(setup_teardown):
     with pytest.raises(ValueError) as exc_info:
-        list_of_files = [r".\data\workbook1.xlsx", r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file1.xlsx"
+        list_of_files = [os.path.join(DATA_DIR, "workbook1.xlsx"), os.path.join(DATA_DIR, "workbook2.xlsx")]
+        output_file = os.path.join(DATA_DIR, "merged_file1.xlsx")
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="invalid_merge_type")
 
     assert_that(str(exc_info.value)).is_equal_to("Invalid merge type. Use 'multiple_sheets', 'single_sheet', or 'sheet_wise'.")
@@ -1321,8 +1352,8 @@ def test_merge_excels_invalid_merge_type(setup_teardown):
 
 def test_merge_excels_multi_sheet_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
-        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file2.xlsx"
+        list_of_files = [INVALID_EXCEL_FILE_PATH, os.path.join(DATA_DIR, "workbook2.xlsx")]
+        output_file = os.path.join(DATA_DIR, "merged_file2.xlsx")
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="multiple_sheets")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1330,8 +1361,8 @@ def test_merge_excels_multi_sheet_file_not_found(setup_teardown):
 
 def test_merge_excels_single_sheet_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
-        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file3.xlsx"
+        list_of_files = [INVALID_EXCEL_FILE_PATH, os.path.join(DATA_DIR, "workbook2.xlsx")]
+        output_file = os.path.join(DATA_DIR, "merged_file3.xlsx")
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="single_sheet")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1339,8 +1370,8 @@ def test_merge_excels_single_sheet_file_not_found(setup_teardown):
 
 def test_merge_excels_sheet_wise_file_not_found(setup_teardown):
     with pytest.raises(ExcelFileNotFoundError) as exc_info:
-        list_of_files = [INVALID_EXCEL_FILE_PATH, r".\data\workbook2.xlsx"]
-        output_file = r".\data\merged_file4.xlsx"
+        list_of_files = [INVALID_EXCEL_FILE_PATH, os.path.join(DATA_DIR, "workbook2.xlsx")]
+        output_file = os.path.join(DATA_DIR, "merged_file4.xlsx")
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
 
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
@@ -1348,7 +1379,7 @@ def test_merge_excels_sheet_wise_file_not_found(setup_teardown):
 
 def test_merge_excels_sheet_wise_index_error(setup_teardown):
     data = {
-        r".\data\sheet_wise_workbook1.xlsx": {
+        os.path.join(DATA_DIR, "sheet_wise_workbook1.xlsx"): {
             "Sheet1": [
                 ["Name", "Age"],
                 ["Mark", 25],
@@ -1360,7 +1391,7 @@ def test_merge_excels_sheet_wise_index_error(setup_teardown):
                 ["London", "UK"]
             ]
         },
-        r".\data\sheet_wise_workbook2.xlsx": {
+        os.path.join(DATA_DIR, "sheet_wise_workbook2.xlsx"): {
             "Sheet1": [
                 ["Name", "Age"],
                 ["Dee", 26],
@@ -1390,8 +1421,8 @@ def test_merge_excels_sheet_wise_index_error(setup_teardown):
         create_workbook(filename, sheets_data)
 
     with pytest.warns(UserWarning, match="Skipping"):
-        list_of_files = [r".\data\sheet_wise_workbook1.xlsx", r".\data\sheet_wise_workbook2.xlsx"]
-        output_file = r".\data\merged_file_sheet_wise2.xlsx"
+        list_of_files = [os.path.join(DATA_DIR, "sheet_wise_workbook1.xlsx"), os.path.join(DATA_DIR, "sheet_wise_workbook2.xlsx")]
+        output_file = os.path.join(DATA_DIR, "merged_file_sheet_wise2.xlsx")
         exl.merge_excels(file_list=list_of_files, output_filename=output_file, merge_type="sheet_wise")
 
 
@@ -1551,7 +1582,7 @@ def test_sort_columns_none_header(setup_teardown):
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         exl.sort_column(column_name_or_letter='A', starting_cell='A1', sheet_name='Sheet1')
 
-    assert_that(str(exc_info.value)).is_equal_to(f"Sheet1 does not have a valid string header: 'None' found.")
+    assert_that(str(exc_info.value)).is_equal_to("Sheet1 does not have a valid string header: 'None' found.")
 
 
 def test_sort_columns_column_out_of_bound(setup_teardown):
@@ -1559,7 +1590,7 @@ def test_sort_columns_column_out_of_bound(setup_teardown):
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         exl.sort_column(column_name_or_letter='ZZZ', starting_cell='A1', sheet_name='Sheet1')
 
-    assert_that(str(exc_info.value)).is_equal_to(f"Column letter 'ZZZ' is out of bounds for the provided sheet.")
+    assert_that(str(exc_info.value)).is_equal_to("Column letter 'ZZZ' is out of bounds for the provided sheet.")
 
 
 @pytest.mark.parametrize("columns, output_format, expected_length, expected_value", [
@@ -1616,7 +1647,7 @@ def test_find_duplicates_none_header(setup_teardown):
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         exl.find_duplicates(column_names_or_letters='A', starting_cell='A1', sheet_name='Sheet1')
 
-    assert_that(str(exc_info.value)).is_equal_to(f"Sheet1 does not have a valid string header: 'None' found.")
+    assert_that(str(exc_info.value)).is_equal_to("Sheet1 does not have a valid string header: 'None' found.")
 
 
 def test_find_duplicates_column_out_of_bound(setup_teardown):
@@ -1624,7 +1655,7 @@ def test_find_duplicates_column_out_of_bound(setup_teardown):
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         exl.find_duplicates(column_names_or_letters='ZZZ', starting_cell='A1', sheet_name='Sheet1')
 
-    assert_that(str(exc_info.value)).is_equal_to(f"Column letter 'ZZZ' is out of bounds for the provided sheet.")
+    assert_that(str(exc_info.value)).is_equal_to("Column letter 'ZZZ' is out of bounds for the provided sheet.")
 
 
 def test_compare_excels_success(setup_teardown):
@@ -1652,7 +1683,7 @@ def test_compare_excels_file_not_found(setup_teardown):
     assert_that(str(exc_info.value)).is_equal_to(f"Excel file '{INVALID_EXCEL_FILE_PATH}' not found. Please give the valid file path.")
 
 
-def test_fetch_sheet_data_invalid_cell_address(setup_teardown):
+def test_compare_excels_invalid_cell_address(setup_teardown):
     with pytest.raises(InvalidCellAddressError) as exc_info:
         exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
         source_excel_config = {'sheet_name': 'Sheet1', 'starting_cell': INVALID_CELL_ADDRESS, 'columns': ['First Name', 'Last Name']}

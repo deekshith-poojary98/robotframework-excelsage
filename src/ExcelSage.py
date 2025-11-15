@@ -10,11 +10,11 @@ import openpyxl as excel
 from openpyxl import Workbook
 from openpyxl.workbook.protection import WorkbookProtection
 from openpyxl.worksheet.protection import SheetProtection
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, Protection
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = '1.0.2'
+__version__ = '1.1.0'
 
 
 class ExcelError(Exception): ...
@@ -1193,7 +1193,7 @@ class ExcelSage:
                 sheet.protection.scenarios = False
 
         self.active_workbook.save(self.active_workbook_name)
-        logger.info(f"Workbook have been successfully protected.")
+        logger.info("Workbook have been successfully protected.")
 
     @keyword
     def unprotect_workbook(self, unprotect_sheets: bool = False) -> None:
@@ -1332,7 +1332,7 @@ class ExcelSage:
             if all_occurences:
                 logger.info(f"Value found in cell(s) {all_occurences}")
                 return all_occurences
-            logger.info(f"Value not found in any cell.")
+            logger.info("Value not found in any cell.")
             return None
 
     @keyword

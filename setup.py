@@ -6,7 +6,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name="robotframework-excelsage",
-    version="1.0.2",
+    version="1.1.0",
     description="A package for integrating Robot Framework with Excel using openpyxl and pandas",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -20,8 +20,8 @@ setup(
     keywords="excel testing testautomation robotframework robotframework-excelsage robotframework-excellibrary robotframework-excellib",
     install_requires=[
         'pyarrow',
-        'openpyxl==3.1.5',
-        'pandas>=2.2.0,<2.3.0',
+        'pandas>=2.2.0',
+        'openpyxl>=3.1.0',
         'robotframework>=5.0.1'
     ],
     classifiers=[
