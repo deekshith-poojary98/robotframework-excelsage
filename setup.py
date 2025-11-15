@@ -16,7 +16,7 @@ setup(
     author_email="deekshithpoojary355@gmail.com",
     license="Apache License 2.0",
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     keywords="excel testing testautomation robotframework robotframework-excelsage robotframework-excellibrary robotframework-excellib",
     install_requires=[
         "pyarrow",
