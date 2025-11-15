@@ -1,5 +1,5 @@
 from collections import Counter
-from src.ExcelSage import (
+from ExcelSage import (
     ExcelSage,
     ExcelFileNotFoundError,
     FileAlreadyExistsError,
