@@ -62,6 +62,7 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        pandas-version: ['>=2.0.0,<2.1.0', '>=2.1.0,<2.2.0', '>=2.2.0,<2.3.0', '>=2.3.0,<2.4.0']
       fail-fast: false
     
     runs-on: ubuntu-latest
@@ -79,30 +80,51 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-pandas-${{ matrix.pandas-version }}-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-pandas-${{ matrix.pandas-version }}-
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # Install pandas with specific version constraint first
+          pip install "pandas${{ matrix.pandas-version }}"
+          # Install other dependencies from requirements.txt (excluding pandas)
+          pip install $(grep -v "^pandas" requirements.txt | grep -v "^#" | grep -v "^$" | tr '\n' ' ')
           pip install pytest-cov
 
-      - name: Run tests (Python ${{ matrix.python-version }})
+      - name: Set pandas version label
+        id: pandas-label
         run: |
-          pytest tests/ -v --cov=src --cov-report=xml --cov-report=json --junitxml=pytest-report-${{ matrix.python-version }}.xml
+          if [[ "${{ matrix.pandas-version }}" == *"2.3"* ]]; then
+            echo "label=2.3.x" >> $GITHUB_OUTPUT
+            echo "sanitized=2.3" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.pandas-version }}" == *"2.2"* ]]; then
+            echo "label=2.2.x" >> $GITHUB_OUTPUT
+            echo "sanitized=2.2" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.pandas-version }}" == *"2.1"* ]]; then
+            echo "label=2.1.x" >> $GITHUB_OUTPUT
+            echo "sanitized=2.1" >> $GITHUB_OUTPUT
+          else
+            echo "label=2.0.x" >> $GITHUB_OUTPUT
+            echo "sanitized=2.0" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Upload test reports (Python ${{ matrix.python-version }})
+      - name: Run tests (Python ${{ matrix.python-version }}, pandas ${{ steps.pandas-label.outputs.label }})
+        run: |
+          pytest tests/ -v --cov=ExcelSage --cov-report=xml --cov-report=json --junitxml=pytest-report-py${{ matrix.python-version }}-pandas${{ steps.pandas-label.outputs.sanitized }}.xml
+
+      - name: Upload test reports (Python ${{ matrix.python-version }}, pandas ${{ steps.pandas-label.outputs.label }})
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-reports-py${{ matrix.python-version }}
+          name: test-reports-py${{ matrix.python-version }}-pandas${{ steps.pandas-label.outputs.sanitized }}
           path: |
             coverage.json
             coverage.xml
-            pytest-report-${{ matrix.python-version }}.xml
+            pytest-report-py${{ matrix.python-version }}-pandas${{ steps.pandas-label.outputs.sanitized }}.xml
           retention-days: 7
 
 
@@ -135,9 +157,9 @@ jobs:
       - name: Run Bandit security scan
         run: |
           echo "Running Bandit security scan..."
-          bandit -r src/ -f json -o bandit-report.json --severity-level medium --confidence-level medium || true
+          bandit -r ExcelSage/ -f json -o bandit-report.json --severity-level medium --confidence-level medium || true
           echo "Security scan results:"
-          bandit -r src/ -ll --severity-level medium --confidence-level medium || true
+          bandit -r ExcelSage/ -ll --severity-level medium --confidence-level medium || true
 
       - name: Check for high severity issues
         run: |
@@ -183,7 +205,7 @@ jobs:
           path: artifacts
           pattern: |
             ruff-reports
-            test-reports-py*
+            test-reports-py*-pandas*
             bandit-security-report
           merge-multiple: false
 
@@ -231,42 +253,51 @@ jobs:
             // Test section
             comment += '### 🧪 Test Results\n';
             if (testResult === 'success') {
-              comment += '✅ **All tests passed across all Python versions!**\n\n';
-              comment += '**Tested Python versions:** 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 ✅\n';
+              comment += '✅ **All tests passed across all Python and pandas versions!**\n\n';
+              comment += '**Tested configurations:**\n';
+              comment += '- **Python versions:** 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 ✅\n';
+              comment += '- **Pandas versions:** 2.0.x, 2.1.x, 2.2.x, 2.3.x ✅\n';
+              comment += '- **Total test runs:** 28 (7 Python × 4 pandas versions)\n';
             } else if (testResult === 'failure') {
-              comment += '❌ **Test failures detected in one or more Python versions!**\n';
+              comment += '❌ **Test failures detected in one or more configurations!**\n';
               comment += 'Please check the test logs for detailed failure information.\n';
-              comment += '\n**Note:** Tests run on Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, and 3.14\n';
+              comment += '\n**Note:** Tests run on:\n';
+              comment += '- Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14\n';
+              comment += '- Pandas 2.0.x, 2.1.x, 2.2.x, 2.3.x\n';
             } else {
               comment += '⚠️ **Test status unknown**\n';
             }
             
-            // Coverage information - try to get from latest Python version
+            // Coverage information - try to get from latest Python version and pandas version
             const pythonVersions = ['3.14', '3.13', '3.12', '3.11', '3.10', '3.9', '3.8'];
+            const pandasVersions = ['2.3', '2.2', '2.1', '2.0'];
             let coverageFound = false;
             for (const pyVersion of pythonVersions) {
-              const coveragePath = `artifacts/test-reports-py${pyVersion}/coverage.json`;
-              if (fs.existsSync(coveragePath)) {
-                try {
-                  const coverageData = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
-                  const totalCoverage = coverageData.totals?.percent_covered || 0;
-                  comment += `\n📊 **Code Coverage** (Python ${pyVersion}): ${totalCoverage.toFixed(1)}%\n`;
-                  
-                  if (totalCoverage < 70) {
-                    comment += '🔴 **Coverage is below 70%** - Critical: Add more tests immediately\n';
-                  } else if (totalCoverage < 80) {
-                    comment += '🟡 **Coverage is below 80%** - Consider adding more tests\n';
-                  } else if (totalCoverage < 90) {
-                    comment += '🟢 **Good test coverage!** (80%+)\n';
-                  } else {
-                    comment += '🎉 **Excellent test coverage!** (90%+)\n';
+              for (const pdVersion of pandasVersions) {
+                const coveragePath = `artifacts/test-reports-py${pyVersion}-pandas${pdVersion}/coverage.json`;
+                if (fs.existsSync(coveragePath)) {
+                  try {
+                    const coverageData = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+                    const totalCoverage = coverageData.totals?.percent_covered || 0;
+                    comment += `\n📊 **Code Coverage** (Python ${pyVersion}, pandas ${pdVersion}.x): ${totalCoverage.toFixed(1)}%\n`;
+                    
+                    if (totalCoverage < 70) {
+                      comment += '🔴 **Coverage is below 70%** - Critical: Add more tests immediately\n';
+                    } else if (totalCoverage < 80) {
+                      comment += '🟡 **Coverage is below 80%** - Consider adding more tests\n';
+                    } else if (totalCoverage < 90) {
+                      comment += '🟢 **Good test coverage!** (80%+)\n';
+                    } else {
+                      comment += '🎉 **Excellent test coverage!** (90%+)\n';
+                    }
+                    coverageFound = true;
+                    break;
+                  } catch (e) {
+                    // Try next version
                   }
-                  coverageFound = true;
-                  break;
-                } catch (e) {
-                  // Try next version
                 }
               }
+              if (coverageFound) break;
             }
             if (!coverageFound) {
               comment += '\n⚠️ **Coverage data not available**\n';
