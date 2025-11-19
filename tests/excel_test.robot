@@ -12,4 +12,5 @@ Test Excel Library
     Open Workbook    ${excel}
     ${sheets}    Get sheets
     Log    ${sheets}    WARN
+    Export To Csv    filename=${excel}    sheet_name=${sheets}[0]    output_filename=file.csv    separator=-
 

@@ -14,7 +14,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 class ExcelError(Exception): ...
@@ -2229,24 +2229,29 @@ class ExcelSage:
         filename: str,
         sheet_name: str,
         output_filename: str,
+        separator: str = ',',
         overwrite_if_exists: bool = False,
     ) -> str:
         """
         The `Export To CSV` keyword reads the data from a specified sheet in an Excel file and exports it to a CSV file.
-
+        
+        *Note*
+        Separator must be a string of length 1
+        
         *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
         | ***** Test Cases *****
         | Example
-        |   Export To CSV     filename=\\path\\to\\excel\\file.xlsx    sheet_name=Sheet1    output_filename=\\path\\to\\csv\\file.csv
+        |   Export To CSV     filename=\\path\\to\\excel\\file.xlsx    sheet_name=Sheet1    output_filename=\\path\\to\\csv\\file.csv    separator=;  
         """
         self.__argument_type_checker(
             {
                 "filename": [filename, str],
                 "output_filename": [output_filename, str],
                 "overwrite_if_exists": [overwrite_if_exists, bool],
+                "separator": [separator, str]
             }
         )
         if not os.path.exists(filename):
@@ -2256,7 +2261,7 @@ class ExcelSage:
             raise FileAlreadyExistsError(output_filename)
 
         df = pd.read_excel(filename, sheet_name=sheet_name)
-        df.to_csv(output_filename, index=False)
+        df.to_csv(output_filename, index=False, sep=separator)
         return output_filename
 
     @keyword
