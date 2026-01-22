@@ -1,4 +1,7 @@
-# ExcelSage Library
+<div align="center">
+    <img src="assets/logo.png" alt="ExcelSage Logo" width="250" height="250"/>
+    <h1>ExcelSage Library</h1>
+</div>
 
 [![PyPI version](https://badge.fury.io/py/robotframework-excelsage.svg)](https://badge.fury.io/py/robotframework-excelsage)
 [![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
