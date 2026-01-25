@@ -17,7 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 __version__ = "1.1.2"
 
 
-class ExcelError(Exception): ...
+class ExcelError(Exception):
+    """Base exception class for all Excel-related errors."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 
 class WorkbookNotProtectedError(ExcelError):
@@ -25,8 +30,7 @@ class WorkbookNotProtectedError(ExcelError):
         self,
         message: str = "The workbook is not currently protected and cannot be unprotected.",
     ):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class WorkbookAlreadyProtectedError(ExcelError):
@@ -34,64 +38,70 @@ class WorkbookAlreadyProtectedError(ExcelError):
         self,
         message: str = "The workbook is already protected and cannot be protected be again.",
     ):
-        self.message = message
-        super().__init__(self.message)
-
-
-class InvalidColumnNameError(ExcelError):
-    def __init__(self, sheet: str, columns: List[str]):
-        self.columns = columns
-        self.sheet = sheet
-        self.message = f"Invalid columns. Columns not found: {self.columns} in sheet '{self.sheet}'."
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class ColumnMismatchError(ExcelError):
     def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class InvalidCellRangeError(ExcelError):
     def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
+
+
+class WorkbookNotOpenError(ExcelError):
+    def __init__(
+        self, message: str = "Workbook isn't open. Please open the workbook first."
+    ):
+        super().__init__(message)
+
+
+# Parameter-based exceptions with auto-generated messages
+class InvalidColumnNameError(ExcelError):
+    def __init__(self, sheet: str, columns: List[str]):
+        self.columns = columns
+        self.sheet = sheet
+        message = f"Invalid columns. Columns not found: {self.columns} in sheet '{self.sheet}'."
+        super().__init__(message)
 
 
 class InvalidColumnIndexError(ExcelError):
     def __init__(self, col_index: int):
         self.col_index = col_index
-        self.message = f"Column index {col_index} is invalid or out of bounds. The valid range is 1 to 16384."
-        super().__init__(self.message)
+        message = f"Column index {col_index} is invalid or out of bounds. The valid range is 1 to 16384."
+        super().__init__(message)
 
 
 class InvalidRowIndexError(ExcelError):
     def __init__(self, row_index: int):
         self.row_index = row_index
-        self.message = f"Row index {row_index} is invalid or out of bounds. The valid range is 1 to 1048576."
-        super().__init__(self.message)
+        message = f"Row index {row_index} is invalid or out of bounds. The valid range is 1 to 1048576."
+        super().__init__(message)
 
 
 class FileAlreadyExistsError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
-        self.message = f"Unable to create workbook. The file '{self.file_name}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file."
-        super().__init__(self.message)
+        message = f"Unable to create workbook. The file '{self.file_name}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file."
+        super().__init__(message)
 
 
 class InvalidColorError(ExcelError):
-    def __init__(self, type, color: str):
+    def __init__(self, color_type: str, color: str):
         self.color = color
-        self.message = f"Invalid {type} color: '{self.color}'. Use valid hex color in #RRGGBB format."
-        super().__init__(self.message)
+        self.color_type = color_type
+        message = f"Invalid {color_type} color: '{self.color}'. Use valid hex color in #RRGGBB format."
+        super().__init__(message)
 
 
 class InvalidBorderStyleError(ExcelError):
     def __init__(self, border_style: str, allowed_styles: List[str]):
         self.border_style = border_style
         self.allowed_styles = allowed_styles
-        self.message = f"Invalid border style: '{self.border_style}'. Allowed values are {self.allowed_styles}."
-        super().__init__(self.message)
+        message = f"Invalid border style: '{self.border_style}'. Allowed values are {self.allowed_styles}."
+        super().__init__(message)
 
 
 class InvalidAlignmentError(ExcelError):
@@ -101,75 +111,67 @@ class InvalidAlignmentError(ExcelError):
         self.alignment_type = alignment_type
         self.alignment_value = alignment_value
         self.allowed_values = allowed_values
-        self.message = f"Invalid {self.alignment_type} alignment: '{self.alignment_value}'. Allowed values are {self.allowed_values}."
-        super().__init__(self.message)
+        message = f"Invalid {self.alignment_type} alignment: '{self.alignment_value}'. Allowed values are {self.allowed_values}."
+        super().__init__(message)
 
 
 class InvalidSheetNameError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet name '{self.sheet_name}' is invalid."
-        super().__init__(self.message)
+        message = f"The sheet name '{self.sheet_name}' is invalid."
+        super().__init__(message)
 
 
 class SheetAlreadyProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet '{self.sheet_name}' is already protected and cannot be protected be again."
-        super().__init__(self.message)
+        message = f"The sheet '{self.sheet_name}' is already protected and cannot be protected be again."
+        super().__init__(message)
 
 
 class SheetNotProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet '{self.sheet_name}' is not currently protected and cannot be unprotected."
-        super().__init__(self.message)
+        message = f"The sheet '{self.sheet_name}' is not currently protected and cannot be unprotected."
+        super().__init__(message)
 
 
 class ExcelFileNotFoundError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
-        self.message = (
+        message = (
             f"Excel file '{file_name}' not found. Please give the valid file path."
         )
-        super().__init__(self.message)
-
-
-class WorkbookNotOpenError(ExcelError):
-    def __init__(
-        self, message: str = "Workbook isn't open. Please open the workbook first."
-    ):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class SheetAlreadyExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"Sheet '{self.sheet_name}' already exists."
-        super().__init__(self.message)
+        message = f"Sheet '{self.sheet_name}' already exists."
+        super().__init__(message)
 
 
 class SheetDoesntExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"Sheet '{self.sheet_name}' doesn't exists."
-        super().__init__(self.message)
+        message = f"Sheet '{self.sheet_name}' doesn't exists."
+        super().__init__(message)
 
 
 class InvalidCellAddressError(ExcelError):
     def __init__(self, cell_name: str):
         self.cell_name = cell_name
-        self.message = f"Cell '{self.cell_name}' doesn't exists."
-        super().__init__(self.message)
+        message = f"Cell '{self.cell_name}' doesn't exists."
+        super().__init__(message)
 
 
 class InvalidSheetPositionError(ExcelError):
     def __init__(self, position: int, max_position: int):
         self.position = position
         self.max_position = max_position
-        self.message = f"Invalid sheet position: {self.position}. Maximum allowed is {self.max_position}."
-        super().__init__(self.message)
+        message = f"Invalid sheet position: {self.position}. Maximum allowed is {self.max_position}."
+        super().__init__(message)
 
 
 class ExcelSage:
@@ -208,8 +210,8 @@ class ExcelSage:
     VALID_VERTICAL_ALIGNMENTS = ["top", "center", "bottom"]
 
     def __init__(self) -> None:
-        self.workbooks = {}  # Dictionary to store workbooks: {alias: {'workbook': Workbook, 'name': str}}
-        self.active_workbook_alias = None  # Track which workbook is currently active
+        self.workbooks = {}
+        self.active_workbook_alias = None
         self.active_sheet = None
 
     @not_keyword
@@ -1715,7 +1717,7 @@ class ExcelSage:
 
             if font_color is not None:
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", font_color):
-                    raise InvalidColorError(type="font", color=font_color)
+                    raise InvalidColorError(color_type="font", color=font_color)
 
                 if font_color.startswith("#"):
                     font_color = "FF" + font_color[1:]
@@ -1726,7 +1728,7 @@ class ExcelSage:
             # Apply background color
             if bg_color is not None:
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", bg_color):
-                    raise InvalidColorError(type="background", color=bg_color)
+                    raise InvalidColorError(color_type="background", color=bg_color)
 
                 if bg_color.startswith("#"):
                     bg_color = "FF" + bg_color[1:]
@@ -1787,7 +1789,7 @@ class ExcelSage:
                     )
 
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", border_color):
-                    raise InvalidColorError(type="border", color=border_color)
+                    raise InvalidColorError(color_type="border", color=border_color)
 
                 # Convert color to ARGB
                 if border_color.startswith("#"):
