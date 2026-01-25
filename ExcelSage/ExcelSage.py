@@ -58,7 +58,6 @@ class WorkbookNotOpenError(ExcelError):
         super().__init__(message)
 
 
-# Parameter-based exceptions with auto-generated messages
 class InvalidColumnNameError(ExcelError):
     def __init__(self, sheet: str, columns: List[str]):
         self.columns = columns
@@ -176,7 +175,9 @@ class InvalidSheetPositionError(ExcelError):
 
 class ExcelSage:
     """
-    ExcelSage is a robust and user-friendly tool designed to streamline and enhance Excel file operations using Python. It provides a comprehensive set of functions for managing workbooks, manipulating sheets, and handling data efficiently within Excel files. With built-in validation, exception handling, and logging, the library ensures smooth interactions with Excel documents while maintaining high levels of reliability.
+    ExcelSage is a robust and user-friendly tool designed to streamline and enhance Excel file operations using Python.
+    It provides a comprehensive set of functions for managing workbooks, manipulating sheets, and handling data efficiently within Excel files.
+    With built-in validation, exception handling, and logging, the library ensures smooth interactions with Excel documents while maintaining high levels of reliability.
 
     Key features include:
     - *Workbook Management*: Open, save, and close workbooks with ease.
@@ -238,6 +239,7 @@ class ExcelSage:
 
     @not_keyword
     def __get_active_sheet_name(self, sheet_name: Optional[str] = None) -> str:
+        """Helper method to get the currently active sheet name."""
         active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker({"sheet_name": [sheet_name, str, None]})
@@ -256,6 +258,7 @@ class ExcelSage:
 
     @not_keyword
     def __argument_type_checker(self, arg_list: Dict[str, List[Any]]) -> None:
+        """Helper method to check the type of the arguments."""
         for arg_name, value in arg_list.items():
             if isinstance(value[1], tuple):
                 expected_type_names = "', or '".join(t.__name__ for t in value[1])
@@ -2518,18 +2521,20 @@ class ExcelSage:
             first_row = list(next(headers_range))
             while first_row and first_row[-1] is None:
                 first_row.pop()
-            
+
             first_row_filtered = [col for col in first_row if col is not None]
 
             max_row = sheet.max_row
             actual_last_data_row = start_row
-            for row_idx in range(start_row + 1, min(max_row + 1, start_row + 10000)):  # Limit search
+            for row_idx in range(
+                start_row + 1, min(max_row + 1, start_row + 10000)
+            ):  # Limit search
                 for col_idx in range(start_col_index, start_col_index + len(first_row)):
                     cell = sheet.cell(row=row_idx, column=col_idx)
                     if cell.value is not None and str(cell.value).strip() != "":
                         actual_last_data_row = row_idx
                         break
-            
+
             read_up_to = actual_last_data_row
             if actual_last_data_row < max_row:
                 next_row = actual_last_data_row + 1
@@ -2539,11 +2544,14 @@ class ExcelSage:
                     if cell.value is not None and str(cell.value).strip() != "":
                         has_any_data_anywhere = True
                         break
-                
-                if has_any_data_anywhere or (next_row == actual_last_data_row + 1 and max_row == actual_last_data_row + 1):
+
+                if has_any_data_anywhere or (
+                    next_row == actual_last_data_row + 1
+                    and max_row == actual_last_data_row + 1
+                ):
                     read_up_to = next_row
-            
-            max_row = read_up_to            
+
+            max_row = read_up_to
             if not first_row_filtered:
                 num_cols = len(first_row)
                 data_rows = []
@@ -2555,7 +2563,7 @@ class ExcelSage:
                     values_only=True,
                 ):
                     data_rows.append(list(row))
-                
+
                 df = pd.DataFrame(data_rows, columns=first_row[:num_cols])
             else:
                 num_cols = len(first_row_filtered)
@@ -2563,7 +2571,7 @@ class ExcelSage:
                 for idx, val in enumerate(first_row):
                     if val is not None and val in first_row_filtered:
                         col_name_to_idx[val] = start_col_index + idx
-                
+
                 data_rows = []
                 for row in sheet.iter_rows(
                     min_row=start_row + 1,
@@ -2581,9 +2589,9 @@ class ExcelSage:
                         else:
                             filtered_row.append(None)
                     data_rows.append(filtered_row)
-                
+
                 df = pd.DataFrame(data_rows, columns=first_row_filtered)
-            
+
             df = df.replace("", pd.NA)
             df_filtered = df.dropna(axis=0, how="all")
             original_columns = df.columns.tolist()
@@ -2615,10 +2623,7 @@ class ExcelSage:
             logger.info(f"No empty rows found in sheet '{sheet_name}'.")
             return 0
 
-        if (
-            self.active_workbook_alias
-            and self.active_workbook_alias in self.workbooks
-        ):
+        if self.active_workbook_alias and self.active_workbook_alias in self.workbooks:
             self.workbooks[self.active_workbook_alias]["workbook"].close()
 
         source_wb = excel.load_workbook(source_path)
@@ -2640,18 +2645,14 @@ class ExcelSage:
         if max_row >= data_start_row:
             clear_to_row = max(original_max_data_row, max_row)
             for row in range(data_start_row, clear_to_row + 1):
-                for col in range(
-                    start_col_index, min(end_col_index + 1, max_col + 1)
-                ):
+                for col in range(start_col_index, min(end_col_index + 1, max_col + 1)):
                     cell = source_ws.cell(row=row, column=col)
                     cell.value = None
 
         if original_num_cols > 0:
             for col_idx, header_value in enumerate(original_columns):
                 target_col = start_col_index + col_idx
-                source_ws.cell(
-                    row=start_row_num, column=target_col, value=header_value
-                )
+                source_ws.cell(row=start_row_num, column=target_col, value=header_value)
 
         data_to_write = df_filtered.values.tolist()
         for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
@@ -2677,9 +2678,7 @@ class ExcelSage:
             }
             self.active_workbook_alias = workbook_path
 
-        logger.info(
-            f"Removed {rows_removed} empty row(s) from sheet '{sheet_name}'."
-        )
+        logger.info(f"Removed {rows_removed} empty row(s) from sheet '{sheet_name}'.")
         return rows_removed
 
     @keyword
