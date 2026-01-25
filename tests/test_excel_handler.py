@@ -37,7 +37,6 @@ import shutil
 from pandas import DataFrame
 import pandas as pd
 
-# Get the project root directory (parent of tests directory)
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = str(PROJECT_ROOT / "data")
 
@@ -58,7 +57,7 @@ INVALID_COLUMN_INDEX = 163841
 @pytest.fixture
 def setup_teardown(scope="function", autouse=False):
     yield
-    if exl.active_workbook:
+    while exl.workbooks:
         exl.close_workbook()
 
 
@@ -367,8 +366,8 @@ def test_close_workbook_success(setup_teardown):
     exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
     exl.close_workbook()
 
-    assert_that(exl.active_workbook).is_none()
-    assert_that(exl.active_workbook_name).is_none()
+    assert_that(exl.active_workbook_alias).is_none()
+    assert_that(exl.workbooks).is_empty()
     assert_that(exl.active_sheet).is_none()
 
 
@@ -379,6 +378,161 @@ def test_close_workbook_workbook_not_open(setup_teardown):
     assert_that(str(exc_info.value)).is_equal_to(
         "Workbook isn't open. Please open the workbook first."
     )
+
+
+def test_open_workbook_with_alias(setup_teardown):
+    """Test opening a workbook with a custom alias."""
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+    
+    assert_that(exl.workbooks).contains_key("source")
+    assert_that(exl.active_workbook_alias).is_equal_to("source")
+    assert_that(exl.workbooks["source"]["name"]).is_equal_to(EXCEL_FILE_PATH)
+
+
+def test_open_multiple_workbooks(setup_teardown):
+    """Test opening multiple workbooks with different aliases."""
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_multiple_workbooks.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        assert_that(exl.workbooks).is_length(1)
+        
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        assert_that(exl.workbooks).is_length(2)
+        assert_that(exl.workbooks).contains_key("source", "target")
+        
+        source_sheets = exl.get_sheets()
+        assert_that(source_sheets).is_not_empty()
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_switch_workbook_success(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_switch_workbook.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        source_sheets = exl.get_sheets()
+        
+        exl.switch_workbook(alias="target")
+        assert_that(exl.active_workbook_alias).is_equal_to("target")
+        
+        exl.switch_workbook(alias="source")
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        source_sheets_after = exl.get_sheets()
+        
+        assert_that(source_sheets).is_equal_to(source_sheets_after)
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_switch_workbook_invalid_alias(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+    
+    with pytest.raises(WorkbookNotOpenError) as exc_info:
+        exl.switch_workbook(alias="nonexistent")
+    assert_that(str(exc_info.value)).contains("not open")
+
+
+def test_close_workbook_by_alias(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_close_by_alias.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        
+        assert_that(exl.workbooks).is_length(2)
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        
+        exl.close_workbook(alias="target")
+        assert_that(exl.workbooks).is_length(1)
+        assert_that(exl.workbooks).contains_key("source")
+        assert_that(exl.workbooks).does_not_contain_key("target")
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        
+        exl.close_workbook(alias="source")
+        assert_that(exl.workbooks).is_empty()
+        assert_that(exl.active_workbook_alias).is_none()
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_close_workbook_switches_active(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_close_switches_active.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        
+        exl.close_workbook(alias="source")
+        
+        assert_that(exl.active_workbook_alias).is_equal_to("target")
+        assert_that(exl.workbooks).is_length(1)
+        assert_that(exl.workbooks).contains_key("target")
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_open_workbook_duplicate_alias(setup_teardown):
+    """Test that opening a workbook with an existing alias raises an error."""
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="my_alias")
+    
+    with pytest.raises(SheetAlreadyExistsError) as exc_info:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="my_alias")
+    assert_that(str(exc_info.value)).contains("already open")
+
+
+def test_operations_with_multiple_workbooks(setup_teardown):
+    """Test that operations work correctly with multiple workbooks open."""
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_operations_multiple.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        
+        exl.switch_workbook(alias="source")
+        source_sheets = exl.get_sheets()
+        
+        exl.switch_workbook(alias="target")
+        target_sheets = exl.get_sheets()
+        
+        exl.switch_workbook(alias="source")
+        source_cell = exl.get_cell_value(sheet_name=source_sheets[0], cell_name="A1")
+        
+        exl.switch_workbook(alias="target")
+        target_cell = exl.get_cell_value(sheet_name=target_sheets[0], cell_name="A1")
+        
+        assert_that(source_cell).is_not_none()
+        assert_that(target_cell).is_not_none()
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
 
 
 def test_save_workbook_success(setup_teardown):
@@ -2453,12 +2607,6 @@ def test_find_duplicates_delete_with_columns(setup_teardown):
         )
         assert_that(duplicates_before).is_length(4)
 
-        initial_row_count = exl.get_row_count(
-            sheet_name="Offset_table",
-            include_header=True,
-            starting_cell="D6",
-        )
-
         rows_deleted = exl.find_duplicates(
             column_names_or_letters="Last Name",
             starting_cell="D6",
@@ -2470,8 +2618,6 @@ def test_find_duplicates_delete_with_columns(setup_teardown):
         assert_that(rows_deleted).is_instance_of(int)
         assert_that(rows_deleted).is_equal_to(2)
 
-        # Open the output file - structure is preserved, so use same starting_cell
-        exl.open_workbook(workbook_name=output_file)
         duplicates_after = exl.find_duplicates(
             column_names_or_letters="Last Name",
             starting_cell="D6",
@@ -2480,18 +2626,13 @@ def test_find_duplicates_delete_with_columns(setup_teardown):
         )
         assert_that(duplicates_after).is_length(0)
 
-        # Verify structure is preserved - we can still read with the same starting_cell
-        # This confirms that data still starts from D6, not A1
         final_row_count = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
             starting_cell="D6",
         )
-        # Verify structure is preserved (can read with D6) and some data exists
         assert_that(final_row_count).is_greater_than(0)
         
-        # Verify that we can fetch data using the same starting_cell
-        # This confirms the structure is preserved
         sheet_data = exl.fetch_sheet_data(
             sheet_name="Offset_table",
             starting_cell="D6",
@@ -2502,7 +2643,7 @@ def test_find_duplicates_delete_with_columns(setup_teardown):
         assert_that(os.path.exists(output_file)).is_true()
         assert_that(os.path.exists(test_file)).is_true()
 
-        exl.open_workbook(workbook_name=test_file)
+        exl.switch_workbook(alias=test_file)
         source_duplicates = exl.find_duplicates(
             column_names_or_letters="Last Name",
             starting_cell="D6",
@@ -2534,12 +2675,6 @@ def test_find_duplicates_delete_without_columns(setup_teardown):
         )
         assert_that(duplicates_before).is_length(4)
 
-        initial_row_count = exl.get_row_count(
-            sheet_name="Offset_table",
-            include_header=True,
-            starting_cell="D6",
-        )
-
         rows_deleted = exl.find_duplicates(
             starting_cell="D6",
             sheet_name="Offset_table",
@@ -2550,8 +2685,6 @@ def test_find_duplicates_delete_without_columns(setup_teardown):
         assert_that(rows_deleted).is_instance_of(int)
         assert_that(rows_deleted).is_equal_to(2)
 
-        # Open the output file - structure is preserved, so use same starting_cell
-        exl.open_workbook(workbook_name=output_file)
         duplicates_after = exl.find_duplicates(
             starting_cell="D6",
             sheet_name="Offset_table",
@@ -2559,18 +2692,13 @@ def test_find_duplicates_delete_without_columns(setup_teardown):
         )
         assert_that(duplicates_after).is_length(0)
 
-        # Verify structure is preserved - we can still read with the same starting_cell
-        # This confirms that data still starts from D6, not A1
         final_row_count = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
             starting_cell="D6",
         )
-        # Verify structure is preserved (can read with D6) and some data exists
         assert_that(final_row_count).is_greater_than(0)
         
-        # Verify that we can fetch data using the same starting_cell
-        # This confirms the structure is preserved
         sheet_data = exl.fetch_sheet_data(
             sheet_name="Offset_table",
             starting_cell="D6",
@@ -2607,8 +2735,6 @@ def test_find_duplicates_delete_with_multiple_columns(setup_teardown):
         assert_that(rows_deleted).is_instance_of(int)
         assert_that(rows_deleted).is_greater_than_or_equal_to(0)
 
-        # Open the output file - structure is preserved, so use same starting_cell
-        exl.open_workbook(workbook_name=output_file)
         duplicates_after = exl.find_duplicates(
             column_names_or_letters=["First Name", "Last Name"],
             starting_cell="D6",
@@ -2644,8 +2770,6 @@ def test_find_duplicates_delete_no_duplicates(setup_teardown):
             output_filename=output_file1,
         )
 
-        # Open the output file from first deletion - structure is preserved
-        exl.open_workbook(workbook_name=output_file1)
         row_count_after_first = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
@@ -2662,8 +2786,6 @@ def test_find_duplicates_delete_no_duplicates(setup_teardown):
 
         assert_that(rows_deleted).is_equal_to(0)
 
-        # Open the output file from second deletion - structure is preserved
-        exl.open_workbook(workbook_name=output_file2)
         row_count_after_second = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
@@ -2748,8 +2870,6 @@ def test_find_duplicates_delete_preserves_other_sheets(setup_teardown):
         )
         assert_that(rows_deleted).is_greater_than(0)
 
-        exl.open_workbook(workbook_name=output_file)
-
         sheets_after = exl.get_sheets()
         assert_that(sheets_after).contains("Offset_table", "Sheet1")
         assert_that(sheets_after).is_length(len(sheets_before))
@@ -2788,7 +2908,7 @@ def test_find_duplicates_delete_overwrite_if_exists_false(setup_teardown):
         assert_that(rows_deleted1).is_greater_than(0)
         assert_that(os.path.exists(output_file)).is_true()
 
-        exl.open_workbook(workbook_name=test_file)
+        exl.switch_workbook(alias=test_file)
         assert_that(os.path.exists(output_file)).is_true()
         
         try:
@@ -2830,14 +2950,13 @@ def test_find_duplicates_delete_overwrite_if_exists_true(setup_teardown):
         assert_that(rows_deleted1).is_greater_than(0)
         assert_that(os.path.exists(output_file)).is_true()
 
-        exl.open_workbook(workbook_name=output_file)
         row_count_after_first = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
             starting_cell="D6",
         )
 
-        exl.open_workbook(workbook_name=test_file)
+        exl.switch_workbook(alias=test_file)
         rows_deleted2 = exl.find_duplicates(
             column_names_or_letters="Last Name",
             starting_cell="D6",
@@ -2849,7 +2968,7 @@ def test_find_duplicates_delete_overwrite_if_exists_true(setup_teardown):
         assert_that(rows_deleted2).is_greater_than(0)
         assert_that(os.path.exists(output_file)).is_true()
 
-        exl.open_workbook(workbook_name=output_file)
+        exl.switch_workbook(alias=output_file)
         row_count_after_second = exl.get_row_count(
             sheet_name="Offset_table",
             include_header=True,
