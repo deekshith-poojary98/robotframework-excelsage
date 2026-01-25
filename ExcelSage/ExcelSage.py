@@ -1813,7 +1813,6 @@ class ExcelSage:
                         border_style=border_style, color=border_color
                     )
 
-                # Apply the border
                 cell.border = Border(**border_sides)
 
             if auto_fit_width:
@@ -2290,25 +2289,17 @@ class ExcelSage:
             duplicates = df[df.duplicated(keep=False)]
 
         if delete:
-            # Get the starting cell coordinates for writing back
             start_col_letter = "".join(filter(str.isalpha, starting_cell))
             start_row_num = int("".join(filter(str.isdigit, starting_cell)))
             start_col_index = column_index_from_string(start_col_letter)
 
-            # Use the already-read df which has the correct structure
-            # This ensures we work with the exact same data range as the initial read
             if column_names_or_letters:
-                # df was already read with the correct structure (usecols=first_row, header=header_row)
-                # Use it directly for duplicate detection
                 df_full = df.copy()
                 df_unique = df_full.drop_duplicates(
                     subset=headers_to_fetch, keep="first"
                 )
                 original_columns = df_full.columns.tolist()
             else:
-                # When no column_names_or_letters, df was read with usecols=first_row
-                # which only includes columns from starting_cell onwards
-                # Use it directly
                 df_full = df.copy()
                 df_unique = df_full.drop_duplicates(keep="first")
                 original_columns = df_full.columns.tolist()
@@ -2322,33 +2313,25 @@ class ExcelSage:
             )
             source_path = self.__get_active_workbook_name()
 
-            # Close the current workbook
             if (
                 self.active_workbook_alias
                 and self.active_workbook_alias in self.workbooks
             ):
                 self.workbooks[self.active_workbook_alias]["workbook"].close()
 
-            # Use openpyxl to preserve the original sheet structure
-            # Load the source workbook
             source_wb = excel.load_workbook(source_path)
             source_ws = source_wb[sheet_name]
 
-            # Determine the data range to clear and write
             max_row = source_ws.max_row
             max_col = source_ws.max_column
 
-            # Only write back the columns that were in the original data range
             original_num_cols = len(original_columns)
             end_col_index = start_col_index + original_num_cols - 1
 
             data_start_row = start_row_num + 1
 
-            # Clear the data area - clear from data_start_row to the original max_row
-            # This ensures we remove any extra rows that might exist
             original_max_data_row = data_start_row + len(df_full) - 1
             if max_row >= data_start_row:
-                # Clear all rows from data_start_row to the maximum of (original_max_data_row, max_row)
                 clear_to_row = max(original_max_data_row, max_row)
                 for row in range(data_start_row, clear_to_row + 1):
                     for col in range(
@@ -2357,7 +2340,6 @@ class ExcelSage:
                         cell = source_ws.cell(row=row, column=col)
                         cell.value = None
 
-            # Write header row at the starting_cell position
             if original_num_cols > 0:
                 for col_idx, header_value in enumerate(original_columns):
                     target_col = start_col_index + col_idx
@@ -2365,27 +2347,19 @@ class ExcelSage:
                         row=start_row_num, column=target_col, value=header_value
                     )
 
-            # Write data rows starting from data_start_row
-            # Only write the exact number of rows we have
             data_to_write = df_unique.values.tolist()
             for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
                 for col_idx, value in enumerate(row_data):
                     target_col = start_col_index + col_idx
                     source_ws.cell(row=row_idx, column=target_col, value=value)
 
-            # Delete any extra rows that are now empty (after the last data row)
-            # This ensures the row count decreases correctly
             last_written_row = data_start_row + len(data_to_write) - 1
             original_last_data_row = data_start_row + len(df_full) - 1
 
-            # If we deleted rows, remove the extra empty rows
             if original_last_data_row > last_written_row:
                 rows_to_delete = original_last_data_row - last_written_row
-                # Delete rows from the end (delete_rows deletes from the specified row)
-                # We need to delete from last_written_row + 1 to original_last_data_row
                 source_ws.delete_rows(last_written_row + 1, rows_to_delete)
 
-            # Save to output file
             source_wb.save(workbook_path)
             source_wb.close()
 
@@ -2416,6 +2390,297 @@ class ExcelSage:
             return duplicates.to_dict(orient="list")
         elif output_format.lower().strip() == "dataframe":
             return duplicates.reset_index(drop=True)
+
+    @keyword
+    def remove_empty_rows(
+        self,
+        output_filename: str,
+        sheet_name: Optional[str] = None,
+        column_names_or_letters: Optional[Union[str, List[str], Tuple[str]]] = None,
+        overwrite_if_exists: bool = False,
+        starting_cell: str = "A1",
+    ) -> int:
+        """
+        The ``Remove Empty Rows`` keyword removes empty rows from the specified sheet in the active workbook.
+        It can check for empty rows based on either all cells in a row or only specified columns.
+
+        If `column_names_or_letters=None`, a row is considered empty if ALL cells in that row are empty.
+        If `column_names_or_letters` is specified, only those columns are checked for emptiness.
+
+        The function returns the number of rows removed.
+
+        The `output_filename` parameter is mandatory to avoid modifying the source file directly.
+        The `overwrite_if_exists` parameter controls whether an existing output file can be overwritten.
+        If `overwrite_if_exists=False` (default) and the output file already exists, a `FileAlreadyExistsError` will be raised.
+        Set `overwrite_if_exists=True` to allow overwriting existing files.
+
+        The `starting_cell` parameter specifies where the data begins (including headers), allowing you to preserve
+        the structure of the Excel file (e.g., headers, formatting, or data that appears before the starting cell).
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
+        |   ${removed}    Remove Empty Rows    sheet_name=Sheet1    output_filename=\\path\\to\\output.xlsx
+        |   ${removed}    Remove Empty Rows    column_names_or_letters=Age    sheet_name=Sheet1    output_filename=\\path\\to\\output.xlsx
+        |   ${removed}    Remove Empty Rows    column_names_or_letters=${columns}    starting_cell=D6    output_filename=\\path\\to\\output.xlsx    overwrite_if_exists=True
+        """
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        if os.path.exists(output_filename) and not overwrite_if_exists:
+            raise FileAlreadyExistsError(output_filename)
+
+        self.__argument_type_checker(
+            {
+                "column_names_or_letters": [
+                    column_names_or_letters,
+                    (str, list, tuple),
+                    None,
+                ],
+                "starting_cell": [starting_cell, str],
+                "overwrite_if_exists": [overwrite_if_exists, bool],
+                "output_filename": [output_filename, str],
+            }
+        )
+
+        try:
+            range_boundaries(starting_cell)
+        except ValueError:
+            raise InvalidCellAddressError(starting_cell)
+
+        start_row = int("".join(filter(str.isdigit, starting_cell)))
+        header_row = start_row - 1
+
+        if column_names_or_letters:
+            if isinstance(column_names_or_letters, str):
+                column_names_or_letters = [column_names_or_letters]
+
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                values_only=True,
+            )
+            first_row = next(headers_range)
+
+            headers_to_fetch = []
+            for col in column_names_or_letters:
+                if isinstance(col, str) and col in first_row:
+                    headers_to_fetch.append(col)
+                elif col.isalpha() and len(col) < 4:
+                    col_index = column_index_from_string(col)
+                    if col_index - 1 < len(first_row):
+                        header = first_row[col_index - 1]
+                        for col in first_row:
+                            if not isinstance(col, str):
+                                raise ValueError(
+                                    f"{sheet_name} does not have a valid string header: '{col}' found."
+                                )
+                            headers_to_fetch.append(header)
+                    else:
+                        raise ValueError(
+                            f"Column letter '{col}' is out of bounds for the provided sheet."
+                        )
+                else:
+                    raise ValueError(f"Invalid column name or letter: '{col}'")
+
+            df = pd.read_excel(
+                self.__get_active_workbook_name(),
+                sheet_name=sheet_name,
+                usecols=first_row,
+                header=header_row,
+            )
+            df = df.replace("", pd.NA)
+            df_filtered = df.dropna(subset=headers_to_fetch, how="all")
+            original_columns = df.columns.tolist()
+        else:
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
+            max_col = sheet.max_column
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                max_col=min(max_col, start_col_index + 100),
+                values_only=True,
+            )
+            first_row = list(next(headers_range))
+            while first_row and first_row[-1] is None:
+                first_row.pop()
+            
+            first_row_filtered = [col for col in first_row if col is not None]
+
+            max_row = sheet.max_row
+            actual_last_data_row = start_row
+            for row_idx in range(start_row + 1, min(max_row + 1, start_row + 10000)):  # Limit search
+                for col_idx in range(start_col_index, start_col_index + len(first_row)):
+                    cell = sheet.cell(row=row_idx, column=col_idx)
+                    if cell.value is not None and str(cell.value).strip() != "":
+                        actual_last_data_row = row_idx
+                        break
+            
+            read_up_to = actual_last_data_row
+            if actual_last_data_row < max_row:
+                next_row = actual_last_data_row + 1
+                has_any_data_anywhere = False
+                for col_idx in range(1, min(sheet.max_column + 1, 100)):
+                    cell = sheet.cell(row=next_row, column=col_idx)
+                    if cell.value is not None and str(cell.value).strip() != "":
+                        has_any_data_anywhere = True
+                        break
+                
+                if has_any_data_anywhere or (next_row == actual_last_data_row + 1 and max_row == actual_last_data_row + 1):
+                    read_up_to = next_row
+            
+            max_row = read_up_to            
+            if not first_row_filtered:
+                num_cols = len(first_row)
+                data_rows = []
+                for row in sheet.iter_rows(
+                    min_row=start_row + 1,
+                    max_row=max_row,
+                    min_col=start_col_index,
+                    max_col=start_col_index + num_cols - 1,
+                    values_only=True,
+                ):
+                    data_rows.append(list(row))
+                
+                df = pd.DataFrame(data_rows, columns=first_row[:num_cols])
+            else:
+                num_cols = len(first_row_filtered)
+                col_name_to_idx = {}
+                for idx, val in enumerate(first_row):
+                    if val is not None and val in first_row_filtered:
+                        col_name_to_idx[val] = start_col_index + idx
+                
+                data_rows = []
+                for row in sheet.iter_rows(
+                    min_row=start_row + 1,
+                    max_row=max_row,
+                    min_col=start_col_index,
+                    max_col=start_col_index + len(first_row) - 1,
+                    values_only=True,
+                ):
+                    row_data = list(row)
+                    filtered_row = []
+                    for col_name in first_row_filtered:
+                        col_idx = col_name_to_idx[col_name] - start_col_index
+                        if col_idx < len(row_data):
+                            filtered_row.append(row_data[col_idx])
+                        else:
+                            filtered_row.append(None)
+                    data_rows.append(filtered_row)
+                
+                df = pd.DataFrame(data_rows, columns=first_row_filtered)
+            
+            df = df.replace("", pd.NA)
+            df_filtered = df.dropna(axis=0, how="all")
+            original_columns = df.columns.tolist()
+
+        rows_removed = len(df) - len(df_filtered)
+
+        workbook_path = output_filename
+        source_path = self.__get_active_workbook_name()
+
+        if rows_removed == 0:
+            if (
+                self.active_workbook_alias
+                and self.active_workbook_alias in self.workbooks
+            ):
+                self.workbooks[self.active_workbook_alias]["workbook"].close()
+
+            source_wb = excel.load_workbook(source_path)
+            source_wb.save(workbook_path)
+            source_wb.close()
+
+            loaded_workbook = excel.load_workbook(workbook_path)
+            if workbook_path not in self.workbooks:
+                self.workbooks[workbook_path] = {
+                    "workbook": loaded_workbook,
+                    "name": workbook_path,
+                }
+                self.active_workbook_alias = workbook_path
+
+            logger.info(f"No empty rows found in sheet '{sheet_name}'.")
+            return 0
+
+        if (
+            self.active_workbook_alias
+            and self.active_workbook_alias in self.workbooks
+        ):
+            self.workbooks[self.active_workbook_alias]["workbook"].close()
+
+        source_wb = excel.load_workbook(source_path)
+        source_ws = source_wb[sheet_name]
+
+        max_row = source_ws.max_row
+        max_col = source_ws.max_column
+
+        start_col_letter = "".join(filter(str.isalpha, starting_cell))
+        start_row_num = int("".join(filter(str.isdigit, starting_cell)))
+        start_col_index = column_index_from_string(start_col_letter)
+
+        original_num_cols = len(original_columns)
+        end_col_index = start_col_index + original_num_cols - 1
+
+        data_start_row = start_row_num + 1
+
+        original_max_data_row = data_start_row + len(df) - 1
+        if max_row >= data_start_row:
+            clear_to_row = max(original_max_data_row, max_row)
+            for row in range(data_start_row, clear_to_row + 1):
+                for col in range(
+                    start_col_index, min(end_col_index + 1, max_col + 1)
+                ):
+                    cell = source_ws.cell(row=row, column=col)
+                    cell.value = None
+
+        if original_num_cols > 0:
+            for col_idx, header_value in enumerate(original_columns):
+                target_col = start_col_index + col_idx
+                source_ws.cell(
+                    row=start_row_num, column=target_col, value=header_value
+                )
+
+        data_to_write = df_filtered.values.tolist()
+        for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
+            for col_idx, value in enumerate(row_data):
+                target_col = start_col_index + col_idx
+                source_ws.cell(row=row_idx, column=target_col, value=value)
+
+        last_written_row = data_start_row + len(data_to_write) - 1
+        original_last_data_row = data_start_row + len(df) - 1
+
+        if original_last_data_row > last_written_row:
+            rows_to_delete = original_last_data_row - last_written_row
+            source_ws.delete_rows(last_written_row + 1, rows_to_delete)
+
+        source_wb.save(workbook_path)
+        source_wb.close()
+
+        loaded_workbook = excel.load_workbook(workbook_path)
+        if workbook_path not in self.workbooks:
+            self.workbooks[workbook_path] = {
+                "workbook": loaded_workbook,
+                "name": workbook_path,
+            }
+            self.active_workbook_alias = workbook_path
+
+        logger.info(
+            f"Removed {rows_removed} empty row(s) from sheet '{sheet_name}'."
+        )
+        return rows_removed
 
     @keyword
     def compare_excels(

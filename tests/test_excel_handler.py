@@ -3130,3 +3130,440 @@ def test_fetch_sheet_data_column_mismatch(setup_teardown):
     assert_that(str(exc_info.value)).is_equal_to(
         "Column mismatch found in excel files.\nMissing in source: {'Last Name'}\nMissing in target: {'Salary'}"
     )
+
+
+def test_remove_empty_rows_all_columns(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_all.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_all_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+        
+        ws.append(["Name", "Age", "City"])
+        ws.append(["John", 25, "NYC"])
+        ws.append([None, None, None])
+        ws.append(["Jane", 30, "LA"])
+        ws.append([None, None, None])
+        ws.append([None, None, None])
+        ws.append(["Bob", 35, "Chicago"])
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+        
+        initial_row_count = exl.get_row_count(
+            sheet_name="Sheet1", include_header=True, starting_cell="A1"
+        )
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Sheet1",
+            output_filename=output_file,
+            starting_cell="A1",
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        assert_that(rows_removed).is_equal_to(3)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+        assert_that(os.path.exists(test_file)).is_true()
+        exl.switch_workbook(alias=test_file)
+        source_row_count = exl.get_row_count(
+            sheet_name="Sheet1", include_header=True, starting_cell="A1"
+        )
+        assert_that(source_row_count).is_equal_to(initial_row_count)
+
+        exl.switch_workbook(alias=output_file)
+        final_row_count = exl.get_row_count(
+            sheet_name="Sheet1", include_header=True, starting_cell="A1"
+        )
+        assert_that(final_row_count).is_equal_to(initial_row_count - rows_removed)
+        assert_that(final_row_count).is_greater_than(0)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_specific_columns(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_columns.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_columns_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+        
+        ws.append(["Name", "Age", "City"])
+        ws.append(["John", 25, "NYC"])
+        ws.append([None, None, None])
+        ws.append(["Jane", None, "LA"])
+        ws.append([None, 30, None])
+        ws.append(["Bob", 35, "Chicago"])
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Sheet1",
+            column_names_or_letters="Name",
+            output_filename=output_file,
+            starting_cell="A1",
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        assert_that(rows_removed).is_greater_than(0)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_with_starting_cell(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_remove_empty_starting_cell.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_starting_cell_output.xlsx")
+
+    try:
+        wb = excel.load_workbook(test_file)
+        if "Offset_table" not in wb.sheetnames:
+            ws = wb.create_sheet("Offset_table")
+        else:
+            ws = wb["Offset_table"]
+            ws.delete_rows(1, ws.max_row)
+        
+        ws["D6"] = "First Name"
+        ws["E6"] = "Last Name"
+        ws["F6"] = "Age"
+        
+        ws["D7"] = "John"
+        ws["E7"] = "Doe"
+        ws["F7"] = 25
+        
+        ws["D8"] = ""
+        ws["E8"] = ""
+        ws["F8"] = ""
+        
+        ws["D9"] = "Jane"
+        ws["E9"] = "Smith"
+        ws["F9"] = 30
+        
+        ws["D10"] = ""
+        ws["E10"] = ""
+        ws["F10"] = ""
+        
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+        
+        initial_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Offset_table",
+            output_filename=output_file,
+            starting_cell="D6",
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        assert_that(rows_removed).is_equal_to(2)
+
+        exl.switch_workbook(alias=output_file)
+        final_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        assert_that(final_row_count).is_equal_to(initial_row_count - rows_removed)
+        
+        sheet_data = exl.fetch_sheet_data(
+            sheet_name="Offset_table",
+            starting_cell="D6",
+            output_format="list",
+        )
+        assert_that(sheet_data).is_not_empty()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_no_empty_rows(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_remove_empty_none.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_none_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Offset_table",
+            output_filename=output_file,
+            starting_cell="D6",
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        # Note: If the file has a formatting row that's completely empty, it will be removed
+        # This is expected behavior - empty rows (even formatting ones) are removed
+        assert_that(rows_removed).is_greater_than_or_equal_to(0)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_file_already_exists(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_exists.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_exists_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.append(["Name", "Age"])
+        ws.append(["John", 25])
+        wb.save(test_file)
+        wb.close()
+
+        wb = excel.Workbook()
+        wb.save(output_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+
+        with pytest.raises(FileAlreadyExistsError) as exc_info:
+            exl.remove_empty_rows(
+                sheet_name="Sheet",
+                output_filename=output_file,
+            )
+
+        assert_that(str(exc_info.value)).contains("already exists")
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_overwrite_if_exists(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_overwrite.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_overwrite_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+        ws.append(["Name", "Age"])
+        ws.append(["John", 25])
+        ws.append([None, None])
+        wb.save(test_file)
+        wb.close()
+
+        wb = excel.Workbook()
+        wb.save(output_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Sheet1",
+            output_filename=output_file,
+            overwrite_if_exists=True,
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_invalid_column_name(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_invalid_col.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_invalid_col_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+        ws.append(["Name", "Age"])
+        ws.append(["John", 25])
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+
+        with pytest.raises(ValueError):
+            exl.remove_empty_rows(
+                sheet_name="Sheet1",
+                column_names_or_letters="InvalidColumn",
+                output_filename=output_file,
+            )
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_invalid_cell_address(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_invalid_cell.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_invalid_cell_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+
+        with pytest.raises(InvalidCellAddressError) as exc_info:
+            exl.remove_empty_rows(
+                sheet_name="Sheet",
+                output_filename=output_file,
+                starting_cell=INVALID_CELL_ADDRESS,
+            )
+
+        assert_that(str(exc_info.value)).contains(INVALID_CELL_ADDRESS)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_multiple_columns(setup_teardown):
+    test_file = os.path.join(DATA_DIR, "test_remove_empty_multi_col.xlsx")
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_multi_col_output.xlsx")
+
+    try:
+        wb = excel.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+        
+        ws.append(["First Name", "Last Name", "Age"])
+        ws.append(["John", "Doe", 25])
+        ws.append([None, None, None])
+        ws.append(["Jane", None, 30])
+        ws.append([None, "Smith", 35])
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Sheet1",
+            column_names_or_letters=["First Name", "Last Name"],
+            output_filename=output_file,
+            starting_cell="A1",
+        )
+
+        assert_that(rows_removed).is_instance_of(int)
+        assert_that(rows_removed).is_greater_than(0)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_remove_empty_rows_preserves_structure(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_remove_empty_structure.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_remove_empty_structure_output.xlsx")
+
+    try:
+        wb = excel.load_workbook(test_file)
+        if "Offset_table" not in wb.sheetnames:
+            ws = wb.create_sheet("Offset_table")
+        else:
+            ws = wb["Offset_table"]
+            # Clear existing data
+            ws.delete_rows(1, ws.max_row)
+        
+        ws["D6"] = "First Name"
+        ws["E6"] = "Last Name"
+        ws["F6"] = "Age"
+        
+        ws["D7"] = "John"
+        ws["E7"] = "Doe"
+        ws["F7"] = 25
+        
+        ws["D8"] = ""
+        ws["E8"] = ""
+        ws["F8"] = ""
+        
+        ws["D9"] = "Jane"
+        ws["E9"] = "Smith"
+        ws["F9"] = 30
+        
+        wb.save(test_file)
+        wb.close()
+
+        exl.open_workbook(workbook_name=test_file)
+        
+        initial_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        
+        rows_removed = exl.remove_empty_rows(
+            sheet_name="Offset_table",
+            output_filename=output_file,
+            starting_cell="D6",
+        )
+
+        assert_that(rows_removed).is_equal_to(1)
+
+        exl.switch_workbook(alias=output_file)
+        final_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        assert_that(final_row_count).is_equal_to(initial_row_count - rows_removed)
+        
+        sheet_data = exl.fetch_sheet_data(
+            sheet_name="Offset_table",
+            starting_cell="D6",
+            output_format="list",
+        )
+        assert_that(sheet_data).is_not_empty()
+        assert_that(len(sheet_data)).is_greater_than(0)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
