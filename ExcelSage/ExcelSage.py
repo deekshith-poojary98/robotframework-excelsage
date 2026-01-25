@@ -2026,11 +2026,22 @@ class ExcelSage:
         output_format: str = "list",
         starting_cell: str = "A1",
         sheet_name: Optional[str] = None,
-    ) -> Union[List[Any], dict, DataFrame]:
+        delete: bool = False,
+        output_filename: Optional[str] = None,
+        overwrite_if_exists: bool = False,
+    ) -> Union[List[Any], dict, DataFrame, int]:
         """
         The `Find Duplicates`` keyword identifies and retrieves duplicate rows from the specified column(s) in the Excel sheet.
         It can check for duplicates based on either column names or column letters, and the results can be returned in different formats such as a list, dictionary, or pandas DataFrame.
         Additionally, you can specify a starting cell from which the headers begin, and filter duplicates from that point onward.
+        
+        When `delete=True`, the duplicate rows are removed from the sheet (keeping the first occurrence) and saved to a file.
+        In this case, `output_filename` is mandatory to avoid modifying the source file directly.
+        The function returns the number of rows deleted (int) instead of the duplicate data.
+        
+        The `overwrite_if_exists` parameter controls whether an existing output file can be overwritten.
+        If `overwrite_if_exists=False` (default) and the output file already exists, a `FileAlreadyExistsError` will be raised.
+        Set `overwrite_if_exists=True` to allow overwriting existing files.
 
         *Examples*
         | ***** Settings *****
@@ -2046,9 +2057,23 @@ class ExcelSage:
         |   ${duplicates}    Find Duplicates    column_names_or_letters=${columns}    output_format=dict    sheet_name=Sheet1
         |   ${duplicates}    Find Duplicates    column_names_or_letters=B
         |   ${duplicates}    Find Duplicates     output_format=dataframe     starting_cell=D6
+        |   ${deleted_count}    Find Duplicates    column_names_or_letters=Age    sheet_name=Sheet1    delete=True    output_filename=\\path\\to\\output.xlsx
+        |   ${deleted_count}    Find Duplicates    column_names_or_letters=Age    sheet_name=Sheet1    delete=True    output_filename=\\path\\to\\output.xlsx    overwrite_if_exists=True
         """
 
         sheet_name = self.__get_active_sheet_name(sheet_name)
+        
+        # Validate that output_filename is provided when delete=True
+        if delete and not output_filename:
+            raise ValueError(
+                "When delete=True, output_filename is mandatory to avoid modifying the source file. "
+                "Please provide an output_filename parameter."
+            )
+        
+        # Validate overwrite_if_exists when output_filename is provided
+        if delete and output_filename and os.path.exists(output_filename) and not overwrite_if_exists:
+            raise FileAlreadyExistsError(output_filename)
+        
         self.__argument_type_checker(
             {
                 "column_names_or_letters": [
@@ -2058,10 +2083,13 @@ class ExcelSage:
                 ],
                 "output_format": [output_format, str],
                 "starting_cell": [starting_cell, str],
+                "overwrite_if_exists": [overwrite_if_exists, bool],
+                "delete": [delete, bool],
+                "output_filename": [output_filename, str, None],
             }
         )
 
-        if output_format.lower().strip() not in ["list", "dict", "dataframe"]:
+        if not delete and output_format.lower().strip() not in ["list", "dict", "dataframe"]:
             raise ValueError(
                 "Invalid output format. Use 'list', 'dict', or 'dataframe'."
             )
@@ -2071,12 +2099,14 @@ class ExcelSage:
         except ValueError:
             raise InvalidCellAddressError(starting_cell)
 
+        start_row = int("".join(filter(str.isdigit, starting_cell)))
+        header_row = start_row - 1
+        
         if column_names_or_letters:
             if isinstance(column_names_or_letters, str):
                 column_names_or_letters = [column_names_or_letters]
 
             start_col_letter = "".join(filter(str.isalpha, starting_cell))
-            start_row = int("".join(filter(str.isdigit, starting_cell)))
             start_col_index = column_index_from_string(start_col_letter)
 
             sheet = self.active_workbook[sheet_name]
@@ -2113,13 +2143,124 @@ class ExcelSage:
                 self.active_workbook_name,
                 sheet_name=sheet_name,
                 usecols=first_row,
-                header=start_row - 1,
+                header=header_row,
             )
             duplicates = df[df.duplicated(subset=headers_to_fetch, keep=False)]
         else:
-            df = pd.read_excel(self.active_workbook_name, sheet_name=sheet_name)
+            # When no column_names_or_letters, we still need to respect starting_cell
+            # Read only from starting_cell onwards to preserve structure
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+            
+            sheet = self.active_workbook[sheet_name]
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                values_only=True,
+            )
+            first_row = next(headers_range)
+            
+            # Read only columns from starting_cell onwards
+            df = pd.read_excel(
+                self.active_workbook_name,
+                sheet_name=sheet_name,
+                usecols=first_row,
+                header=header_row,
+            )
             duplicates = df[df.duplicated(keep=False)]
 
+        if delete:
+            # Get the starting cell coordinates for writing back
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_row_num = int("".join(filter(str.isdigit, starting_cell)))
+            start_col_index = column_index_from_string(start_col_letter)
+            
+            # Use the already-read df which has the correct structure
+            # This ensures we work with the exact same data range as the initial read
+            if column_names_or_letters:
+                # df was already read with the correct structure (usecols=first_row, header=header_row)
+                # Use it directly for duplicate detection
+                df_full = df.copy()
+                df_unique = df_full.drop_duplicates(subset=headers_to_fetch, keep='first')
+                original_columns = df_full.columns.tolist()
+            else:
+                # When no column_names_or_letters, df was read with usecols=first_row
+                # which only includes columns from starting_cell onwards
+                # Use it directly
+                df_full = df.copy()
+                df_unique = df_full.drop_duplicates(keep='first')
+                original_columns = df_full.columns.tolist()
+            
+            rows_deleted = len(df_full) - len(df_unique)
+            
+            workbook_path = output_filename if output_filename else self.active_workbook_name
+            source_path = self.active_workbook_name
+            
+            self.active_workbook.close()
+            
+            # Use openpyxl to preserve the original sheet structure
+            # Load the source workbook
+            source_wb = excel.load_workbook(source_path)
+            source_ws = source_wb[sheet_name]
+            
+            # Determine the data range to clear and write
+            max_row = source_ws.max_row
+            max_col = source_ws.max_column
+            
+            # Only write back the columns that were in the original data range
+            original_num_cols = len(original_columns)
+            end_col_index = start_col_index + original_num_cols - 1
+            
+            data_start_row = start_row_num + 1
+            
+            # Clear the data area - clear from data_start_row to the original max_row
+            # This ensures we remove any extra rows that might exist
+            original_max_data_row = data_start_row + len(df_full) - 1
+            if max_row >= data_start_row:
+                # Clear all rows from data_start_row to the maximum of (original_max_data_row, max_row)
+                clear_to_row = max(original_max_data_row, max_row)
+                for row in range(data_start_row, clear_to_row + 1):
+                    for col in range(start_col_index, min(end_col_index + 1, max_col + 1)):
+                        cell = source_ws.cell(row=row, column=col)
+                        cell.value = None
+            
+            # Write header row at the starting_cell position
+            if original_num_cols > 0:
+                for col_idx, header_value in enumerate(original_columns):
+                    target_col = start_col_index + col_idx
+                    source_ws.cell(row=start_row_num, column=target_col, value=header_value)
+            
+            # Write data rows starting from data_start_row
+            # Only write the exact number of rows we have
+            data_to_write = df_unique.values.tolist()
+            for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
+                for col_idx, value in enumerate(row_data):
+                    target_col = start_col_index + col_idx
+                    source_ws.cell(row=row_idx, column=target_col, value=value)
+            
+            # Delete any extra rows that are now empty (after the last data row)
+            # This ensures the row count decreases correctly
+            last_written_row = data_start_row + len(data_to_write) - 1
+            original_last_data_row = data_start_row + len(df_full) - 1
+            
+            # If we deleted rows, remove the extra empty rows
+            if original_last_data_row > last_written_row:
+                rows_to_delete = original_last_data_row - last_written_row
+                # Delete rows from the end (delete_rows deletes from the specified row)
+                # We need to delete from last_written_row + 1 to original_last_data_row
+                source_ws.delete_rows(last_written_row + 1, rows_to_delete)
+            
+            # Save to output file
+            source_wb.save(workbook_path)
+            source_wb.close()
+            
+            # Reopen the workbook
+            self.active_workbook = excel.load_workbook(workbook_path)
+            self.active_workbook_name = workbook_path
+            
+            return rows_deleted
+        
         if output_format.lower().strip() == "list":
             return duplicates.values.tolist()
         elif output_format.lower().strip() == "dict":

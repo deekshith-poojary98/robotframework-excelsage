@@ -1532,6 +1532,59 @@ def test_export_to_csv_file_already_exists(setup_teardown):
     )
 
 
+def test_export_to_csv_with_custom_separator(setup_teardown):
+    """Test that export_to_csv uses the specified separator correctly."""
+    csv_file_semicolon = os.path.join(DATA_DIR, "sample_semicolon.csv")
+    csv_file_dash = os.path.join(DATA_DIR, "sample_dash.csv")
+
+    original_df = pd.read_excel(EXCEL_FILE_PATH, sheet_name="Sheet1")
+    original_row_count = len(original_df)
+    original_column_count = len(original_df.columns)
+
+    output_filename = exl.export_to_csv(
+        filename=EXCEL_FILE_PATH,
+        output_filename=csv_file_semicolon,
+        sheet_name="Sheet1",
+        separator=";",
+        overwrite_if_exists=True,
+    )
+
+    assert_that(output_filename).is_equal_to(csv_file_semicolon)
+    assert_that(os.path.exists(csv_file_semicolon)).is_true()
+
+    csv_df_semicolon = pd.read_csv(csv_file_semicolon, sep=";")
+    assert_that(len(csv_df_semicolon)).is_equal_to(original_row_count)
+    assert_that(len(csv_df_semicolon.columns)).is_equal_to(original_column_count)
+
+    with open(csv_file_semicolon, "r", encoding="utf-8") as f:
+        first_line = f.readline()
+        assert_that(first_line.count(";")).is_equal_to(original_column_count - 1)
+
+    output_filename = exl.export_to_csv(
+        filename=EXCEL_FILE_PATH,
+        output_filename=csv_file_dash,
+        sheet_name="Sheet1",
+        separator="-",
+        overwrite_if_exists=True,
+    )
+
+    assert_that(output_filename).is_equal_to(csv_file_dash)
+    assert_that(os.path.exists(csv_file_dash)).is_true()
+
+    csv_df_dash = pd.read_csv(csv_file_dash, sep="-")
+    assert_that(len(csv_df_dash)).is_equal_to(original_row_count)
+    assert_that(len(csv_df_dash.columns)).is_equal_to(original_column_count)
+
+    with open(csv_file_dash, "r", encoding="utf-8") as f:
+        first_line = f.readline()
+        assert_that(first_line.count("-")).is_equal_to(original_column_count - 1)
+
+    if os.path.exists(csv_file_semicolon):
+        os.remove(csv_file_semicolon)
+    if os.path.exists(csv_file_dash):
+        os.remove(csv_file_dash)
+
+
 def test_merge_excels_multi_sheet_success(setup_teardown):
     NEW_FILE = copy_test_excel_file(
         destination_file=os.path.join(DATA_DIR, "sample2.xlsx")
@@ -2381,6 +2434,434 @@ def test_find_duplicates_column_out_of_bound(setup_teardown):
     assert_that(str(exc_info.value)).is_equal_to(
         "Column letter 'ZZZ' is out of bounds for the provided sheet."
     )
+
+
+def test_find_duplicates_delete_with_columns(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_duplicates.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_duplicates_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        duplicates_before = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(duplicates_before).is_length(4)
+
+        initial_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+
+        rows_deleted = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+
+        assert_that(rows_deleted).is_instance_of(int)
+        assert_that(rows_deleted).is_equal_to(2)
+
+        # Open the output file - structure is preserved, so use same starting_cell
+        exl.open_workbook(workbook_name=output_file)
+        duplicates_after = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(duplicates_after).is_length(0)
+
+        # Verify structure is preserved - we can still read with the same starting_cell
+        # This confirms that data still starts from D6, not A1
+        final_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        # Verify structure is preserved (can read with D6) and some data exists
+        assert_that(final_row_count).is_greater_than(0)
+        
+        # Verify that we can fetch data using the same starting_cell
+        # This confirms the structure is preserved
+        sheet_data = exl.fetch_sheet_data(
+            sheet_name="Offset_table",
+            starting_cell="D6",
+            output_format="list",
+        )
+        assert_that(sheet_data).is_not_empty()
+
+        assert_that(os.path.exists(output_file)).is_true()
+        assert_that(os.path.exists(test_file)).is_true()
+
+        exl.open_workbook(workbook_name=test_file)
+        source_duplicates = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(source_duplicates).is_length(4)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_find_duplicates_delete_without_columns(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_duplicates_all.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_duplicates_all_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        duplicates_before = exl.find_duplicates(
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(duplicates_before).is_length(4)
+
+        initial_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+
+        rows_deleted = exl.find_duplicates(
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+
+        assert_that(rows_deleted).is_instance_of(int)
+        assert_that(rows_deleted).is_equal_to(2)
+
+        # Open the output file - structure is preserved, so use same starting_cell
+        exl.open_workbook(workbook_name=output_file)
+        duplicates_after = exl.find_duplicates(
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(duplicates_after).is_length(0)
+
+        # Verify structure is preserved - we can still read with the same starting_cell
+        # This confirms that data still starts from D6, not A1
+        final_row_count = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        # Verify structure is preserved (can read with D6) and some data exists
+        assert_that(final_row_count).is_greater_than(0)
+        
+        # Verify that we can fetch data using the same starting_cell
+        # This confirms the structure is preserved
+        sheet_data = exl.fetch_sheet_data(
+            sheet_name="Offset_table",
+            starting_cell="D6",
+            output_format="list",
+        )
+        assert_that(sheet_data).is_not_empty()
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_find_duplicates_delete_with_multiple_columns(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_duplicates_multi.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_duplicates_multi_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        rows_deleted = exl.find_duplicates(
+            column_names_or_letters=["First Name", "Last Name"],
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+
+        assert_that(rows_deleted).is_instance_of(int)
+        assert_that(rows_deleted).is_greater_than_or_equal_to(0)
+
+        # Open the output file - structure is preserved, so use same starting_cell
+        exl.open_workbook(workbook_name=output_file)
+        duplicates_after = exl.find_duplicates(
+            column_names_or_letters=["First Name", "Last Name"],
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            output_format="list",
+        )
+        assert_that(duplicates_after).is_length(0)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_find_duplicates_delete_no_duplicates(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_no_duplicates.xlsx")
+    )
+    output_file1 = os.path.join(DATA_DIR, "test_delete_no_duplicates_output1.xlsx")
+    output_file2 = os.path.join(DATA_DIR, "test_delete_no_duplicates_output2.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file1,
+        )
+
+        # Open the output file from first deletion - structure is preserved
+        exl.open_workbook(workbook_name=output_file1)
+        row_count_after_first = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+
+        rows_deleted = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file2,
+        )
+
+        assert_that(rows_deleted).is_equal_to(0)
+
+        # Open the output file from second deletion - structure is preserved
+        exl.open_workbook(workbook_name=output_file2)
+        row_count_after_second = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        assert_that(row_count_after_second).is_equal_to(row_count_after_first)
+
+        assert_that(os.path.exists(output_file1)).is_true()
+        assert_that(os.path.exists(output_file2)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file1):
+            os.remove(output_file1)
+        if os.path.exists(output_file2):
+            os.remove(output_file2)
+
+
+def test_find_duplicates_delete_without_output_filename(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+
+    with pytest.raises(ValueError) as exc_info:
+        exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+        )
+
+    assert_that(str(exc_info.value)).contains("output_filename is mandatory")
+
+
+def test_find_duplicates_delete_backward_compatibility(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+
+    duplicates = exl.find_duplicates(
+        column_names_or_letters="Last Name",
+        starting_cell="D6",
+        sheet_name="Offset_table",
+        output_format="list",
+        delete=False,
+    )
+
+    assert_that(duplicates).is_length(4)
+    assert_that(isinstance(duplicates, list)).is_true()
+
+    duplicates_default = exl.find_duplicates(
+        column_names_or_letters="Last Name",
+        starting_cell="D6",
+        sheet_name="Offset_table",
+        output_format="list",
+    )
+
+    assert_that(duplicates_default).is_length(4)
+    assert_that(isinstance(duplicates_default, list)).is_true()
+
+
+def test_find_duplicates_delete_preserves_other_sheets(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_preserves_sheets.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_preserves_sheets_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        sheets_before = exl.get_sheets()
+        assert_that(sheets_before).contains("Offset_table", "Sheet1")
+
+        sheet1_data_before = exl.fetch_sheet_data(
+            sheet_name="Sheet1",
+            output_format="list",
+        )
+
+        rows_deleted = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+        assert_that(rows_deleted).is_greater_than(0)
+
+        exl.open_workbook(workbook_name=output_file)
+
+        sheets_after = exl.get_sheets()
+        assert_that(sheets_after).contains("Offset_table", "Sheet1")
+        assert_that(sheets_after).is_length(len(sheets_before))
+
+        sheet1_data_after = exl.fetch_sheet_data(
+            sheet_name="Sheet1",
+            output_format="list",
+        )
+        assert_that(sheet1_data_after).is_equal_to(sheet1_data_before)
+
+        assert_that(os.path.exists(output_file)).is_true()
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_find_duplicates_delete_overwrite_if_exists_false(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_overwrite_false.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_overwrite_false_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        rows_deleted1 = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+        assert_that(rows_deleted1).is_greater_than(0)
+        assert_that(os.path.exists(output_file)).is_true()
+
+        exl.open_workbook(workbook_name=test_file)
+        assert_that(os.path.exists(output_file)).is_true()
+        
+        try:
+            exl.find_duplicates(
+                column_names_or_letters="Last Name",
+                starting_cell="D6",
+                sheet_name="Offset_table",
+                delete=True,
+                output_filename=output_file,
+                overwrite_if_exists=False,
+            )
+            assert_that(False).is_true()
+        except FileAlreadyExistsError as e:
+            assert_that(str(e)).contains(output_file)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+
+def test_find_duplicates_delete_overwrite_if_exists_true(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_delete_overwrite_true.xlsx")
+    )
+    output_file = os.path.join(DATA_DIR, "test_delete_overwrite_true_output.xlsx")
+
+    try:
+        exl.open_workbook(workbook_name=test_file)
+
+        rows_deleted1 = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+        )
+        assert_that(rows_deleted1).is_greater_than(0)
+        assert_that(os.path.exists(output_file)).is_true()
+
+        exl.open_workbook(workbook_name=output_file)
+        row_count_after_first = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+
+        exl.open_workbook(workbook_name=test_file)
+        rows_deleted2 = exl.find_duplicates(
+            column_names_or_letters="Last Name",
+            starting_cell="D6",
+            sheet_name="Offset_table",
+            delete=True,
+            output_filename=output_file,
+            overwrite_if_exists=True,
+        )
+        assert_that(rows_deleted2).is_greater_than(0)
+        assert_that(os.path.exists(output_file)).is_true()
+
+        exl.open_workbook(workbook_name=output_file)
+        row_count_after_second = exl.get_row_count(
+            sheet_name="Offset_table",
+            include_header=True,
+            starting_cell="D6",
+        )
+        assert_that(row_count_after_second).is_equal_to(row_count_after_first)
+
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
 
 
 def test_compare_excels_success(setup_teardown):
