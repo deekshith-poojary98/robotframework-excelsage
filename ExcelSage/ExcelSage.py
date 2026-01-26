@@ -14,7 +14,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = "1.1.2"
+__version__ = "1.2.0"
 
 
 class ExcelError(Exception):

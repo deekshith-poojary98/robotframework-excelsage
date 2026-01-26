@@ -6,7 +6,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="robotframework-excelsage",
-    version="1.1.2",
+    version="1.2.0",
     description="A package for integrating Robot Framework with Excel using openpyxl and pandas",
     long_description=long_description,
     long_description_content_type="text/markdown",
