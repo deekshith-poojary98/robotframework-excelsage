@@ -4,15 +4,15 @@ coverage
 et_xmlfile
 iniconfig
 numpy
-# openpyxl
+openpyxl
 packaging
-# pandas
+pandas
 pluggy
 Pygments
 pytest
 python-dateutil
 pytz
 robotframework
-robotframework-excelsage
+robotframework-excelsage==1.1.2
 six
 tzdata
