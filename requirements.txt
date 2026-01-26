@@ -13,6 +13,5 @@ pytest
 python-dateutil
 pytz
 robotframework
-robotframework-excelsage==1.1.2
 six
 tzdata
