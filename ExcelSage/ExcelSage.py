@@ -17,7 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 __version__ = "1.1.2"
 
 
-class ExcelError(Exception): ...
+class ExcelError(Exception):
+    """Base exception class for all Excel-related errors."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 
 class WorkbookNotProtectedError(ExcelError):
@@ -25,8 +30,7 @@ class WorkbookNotProtectedError(ExcelError):
         self,
         message: str = "The workbook is not currently protected and cannot be unprotected.",
     ):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class WorkbookAlreadyProtectedError(ExcelError):
@@ -34,64 +38,69 @@ class WorkbookAlreadyProtectedError(ExcelError):
         self,
         message: str = "The workbook is already protected and cannot be protected be again.",
     ):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
+
+
+class ColumnMismatchError(ExcelError):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class InvalidCellRangeError(ExcelError):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class WorkbookNotOpenError(ExcelError):
+    def __init__(
+        self, message: str = "Workbook isn't open. Please open the workbook first."
+    ):
+        super().__init__(message)
 
 
 class InvalidColumnNameError(ExcelError):
     def __init__(self, sheet: str, columns: List[str]):
         self.columns = columns
         self.sheet = sheet
-        self.message = f"Invalid columns. Columns not found: {self.columns} in sheet '{self.sheet}'."
-        super().__init__(self.message)
-
-
-class ColumnMismatchError(ExcelError):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-
-class InvalidCellRangeError(ExcelError):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+        message = f"Invalid columns. Columns not found: {self.columns} in sheet '{self.sheet}'."
+        super().__init__(message)
 
 
 class InvalidColumnIndexError(ExcelError):
     def __init__(self, col_index: int):
         self.col_index = col_index
-        self.message = f"Column index {col_index} is invalid or out of bounds. The valid range is 1 to 16384."
-        super().__init__(self.message)
+        message = f"Column index {col_index} is invalid or out of bounds. The valid range is 1 to 16384."
+        super().__init__(message)
 
 
 class InvalidRowIndexError(ExcelError):
     def __init__(self, row_index: int):
         self.row_index = row_index
-        self.message = f"Row index {row_index} is invalid or out of bounds. The valid range is 1 to 1048576."
-        super().__init__(self.message)
+        message = f"Row index {row_index} is invalid or out of bounds. The valid range is 1 to 1048576."
+        super().__init__(message)
 
 
 class FileAlreadyExistsError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
-        self.message = f"Unable to create workbook. The file '{self.file_name}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file."
-        super().__init__(self.message)
+        message = f"Unable to create workbook. The file '{self.file_name}' already exists. Set 'overwrite_if_exists=True' to overwrite the existing file."
+        super().__init__(message)
 
 
 class InvalidColorError(ExcelError):
-    def __init__(self, type, color: str):
+    def __init__(self, color_type: str, color: str):
         self.color = color
-        self.message = f"Invalid {type} color: '{self.color}'. Use valid hex color in #RRGGBB format."
-        super().__init__(self.message)
+        self.color_type = color_type
+        message = f"Invalid {color_type} color: '{self.color}'. Use valid hex color in #RRGGBB format."
+        super().__init__(message)
 
 
 class InvalidBorderStyleError(ExcelError):
     def __init__(self, border_style: str, allowed_styles: List[str]):
         self.border_style = border_style
         self.allowed_styles = allowed_styles
-        self.message = f"Invalid border style: '{self.border_style}'. Allowed values are {self.allowed_styles}."
-        super().__init__(self.message)
+        message = f"Invalid border style: '{self.border_style}'. Allowed values are {self.allowed_styles}."
+        super().__init__(message)
 
 
 class InvalidAlignmentError(ExcelError):
@@ -101,80 +110,74 @@ class InvalidAlignmentError(ExcelError):
         self.alignment_type = alignment_type
         self.alignment_value = alignment_value
         self.allowed_values = allowed_values
-        self.message = f"Invalid {self.alignment_type} alignment: '{self.alignment_value}'. Allowed values are {self.allowed_values}."
-        super().__init__(self.message)
+        message = f"Invalid {self.alignment_type} alignment: '{self.alignment_value}'. Allowed values are {self.allowed_values}."
+        super().__init__(message)
 
 
 class InvalidSheetNameError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet name '{self.sheet_name}' is invalid."
-        super().__init__(self.message)
+        message = f"The sheet name '{self.sheet_name}' is invalid."
+        super().__init__(message)
 
 
 class SheetAlreadyProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet '{self.sheet_name}' is already protected and cannot be protected be again."
-        super().__init__(self.message)
+        message = f"The sheet '{self.sheet_name}' is already protected and cannot be protected be again."
+        super().__init__(message)
 
 
 class SheetNotProtectedError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"The sheet '{self.sheet_name}' is not currently protected and cannot be unprotected."
-        super().__init__(self.message)
+        message = f"The sheet '{self.sheet_name}' is not currently protected and cannot be unprotected."
+        super().__init__(message)
 
 
 class ExcelFileNotFoundError(ExcelError):
     def __init__(self, file_name: str):
         self.file_name = file_name
-        self.message = (
+        message = (
             f"Excel file '{file_name}' not found. Please give the valid file path."
         )
-        super().__init__(self.message)
-
-
-class WorkbookNotOpenError(ExcelError):
-    def __init__(
-        self, message: str = "Workbook isn't open. Please open the workbook first."
-    ):
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(message)
 
 
 class SheetAlreadyExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"Sheet '{self.sheet_name}' already exists."
-        super().__init__(self.message)
+        message = f"Sheet '{self.sheet_name}' already exists."
+        super().__init__(message)
 
 
 class SheetDoesntExistsError(ExcelError):
     def __init__(self, sheet_name: str):
         self.sheet_name = sheet_name
-        self.message = f"Sheet '{self.sheet_name}' doesn't exists."
-        super().__init__(self.message)
+        message = f"Sheet '{self.sheet_name}' doesn't exists."
+        super().__init__(message)
 
 
 class InvalidCellAddressError(ExcelError):
     def __init__(self, cell_name: str):
         self.cell_name = cell_name
-        self.message = f"Cell '{self.cell_name}' doesn't exists."
-        super().__init__(self.message)
+        message = f"Cell '{self.cell_name}' doesn't exists."
+        super().__init__(message)
 
 
 class InvalidSheetPositionError(ExcelError):
     def __init__(self, position: int, max_position: int):
         self.position = position
         self.max_position = max_position
-        self.message = f"Invalid sheet position: {self.position}. Maximum allowed is {self.max_position}."
-        super().__init__(self.message)
+        message = f"Invalid sheet position: {self.position}. Maximum allowed is {self.max_position}."
+        super().__init__(message)
 
 
 class ExcelSage:
     """
-    ExcelSage is a robust and user-friendly tool designed to streamline and enhance Excel file operations using Python. It provides a comprehensive set of functions for managing workbooks, manipulating sheets, and handling data efficiently within Excel files. With built-in validation, exception handling, and logging, the library ensures smooth interactions with Excel documents while maintaining high levels of reliability.
+    ExcelSage is a robust and user-friendly tool designed to streamline and enhance Excel file operations using Python.
+    It provides a comprehensive set of functions for managing workbooks, manipulating sheets, and handling data efficiently within Excel files.
+    With built-in validation, exception handling, and logging, the library ensures smooth interactions with Excel documents while maintaining high levels of reliability.
 
     Key features include:
     - *Workbook Management*: Open, save, and close workbooks with ease.
@@ -208,31 +211,54 @@ class ExcelSage:
     VALID_VERTICAL_ALIGNMENTS = ["top", "center", "bottom"]
 
     def __init__(self) -> None:
-        self.active_workbook = None
-        self.active_workbook_name = None
+        self.workbooks = {}
+        self.active_workbook_alias = None
         self.active_sheet = None
 
     @not_keyword
-    def __get_active_sheet_name(self, sheet_name: Optional[str] = None) -> str:
-        if not self.active_workbook:
+    def __get_active_workbook(self) -> Workbook:
+        """Helper method to get the currently active workbook."""
+        if self.active_workbook_alias is None:
             raise WorkbookNotOpenError()
+        if self.active_workbook_alias not in self.workbooks:
+            raise WorkbookNotOpenError(
+                f"Active workbook alias '{self.active_workbook_alias}' not found in open workbooks."
+            )
+        return self.workbooks[self.active_workbook_alias]["workbook"]
+
+    @not_keyword
+    def __get_active_workbook_name(self) -> str:
+        """Helper method to get the currently active workbook name."""
+        if self.active_workbook_alias is None:
+            raise WorkbookNotOpenError()
+        if self.active_workbook_alias not in self.workbooks:
+            raise WorkbookNotOpenError(
+                f"Active workbook alias '{self.active_workbook_alias}' not found in open workbooks."
+            )
+        return self.workbooks[self.active_workbook_alias]["name"]
+
+    @not_keyword
+    def __get_active_sheet_name(self, sheet_name: Optional[str] = None) -> str:
+        """Helper method to get the currently active sheet name."""
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker({"sheet_name": [sheet_name, str, None]})
 
         if sheet_name is None:
             if self.active_sheet is None:
-                if not self.active_workbook.sheetnames:
+                if not active_workbook.sheetnames:
                     raise Exception("No sheets found in the workbook.")
-                sheet_name = self.active_workbook.sheetnames[0]
+                sheet_name = active_workbook.sheetnames[0]
             else:
                 sheet_name = self.active_sheet.title
 
-        if sheet_name not in self.active_workbook.sheetnames:
+        if sheet_name not in active_workbook.sheetnames:
             raise SheetDoesntExistsError(sheet_name)
         return sheet_name
 
     @not_keyword
     def __argument_type_checker(self, arg_list: Dict[str, List[Any]]) -> None:
+        """Helper method to check the type of the arguments."""
         for arg_name, value in arg_list.items():
             if isinstance(value[1], tuple):
                 expected_type_names = "', or '".join(t.__name__ for t in value[1])
@@ -251,9 +277,13 @@ class ExcelSage:
                     )
 
     @keyword
-    def open_workbook(self, workbook_name: str, **kwargs) -> Workbook:
+    def open_workbook(
+        self, workbook_name: str, alias: Optional[str] = None, **kwargs
+    ) -> Workbook:
         """
-        The ``Open Workbook`` keyword opens an Excel file by its name, checks if the file exists, and raises an ``ExcelFileNotFoundError`` if it doesn't. It uses openpyxl's ``load_workbook`` to load the workbook, allowing additional options via ``**kwargs``. Once the workbook is opened, it is set as the active workbook and logged. The keyword returns the loaded workbook object for further use.
+        The ``Open Workbook`` keyword opens an Excel file by its name, checks if the file exists, and raises an ``ExcelFileNotFoundError`` if it doesn't. It uses openpyxl's ``load_workbook`` to load the workbook, allowing additional options via ``**kwargs``. Once the workbook is opened, it is stored with an optional alias and set as the active workbook if it's the first one opened. The keyword returns the loaded workbook object for further use.
+
+        If no alias is provided, the workbook name (file path) will be used as the alias. If an alias is provided and already exists, it will raise a ``SheetAlreadyExistsError``.
 
         *Examples*
         | ***** Settings *****
@@ -262,16 +292,33 @@ class ExcelSage:
         | ***** Test Cases *****
         | Example
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     alias=source
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file2.xlsx     alias=target
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     read_only=False     keep_vba=True     rich_text=False
-        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     data_only=False     keep_links=True
         """
         if not os.path.exists(workbook_name):
             raise ExcelFileNotFoundError(workbook_name)
         self.__argument_type_checker({"workbook_name": [workbook_name, str]})
-        self.active_workbook_name = workbook_name
-        self.active_workbook = excel.load_workbook(filename=workbook_name, **kwargs)
-        logger.info(f"Workbook {self.active_workbook_name} opened successfully!")
-        return self.active_workbook
+
+        if alias is None:
+            alias = workbook_name
+
+        if alias in self.workbooks:
+            raise SheetAlreadyExistsError(
+                f"A workbook with alias '{alias}' is already open. Use a different alias or close it first."
+            )
+
+        workbook = excel.load_workbook(filename=workbook_name, **kwargs)
+
+        self.workbooks[alias] = {"workbook": workbook, "name": workbook_name}
+
+        if self.active_workbook_alias is None:
+            self.active_workbook_alias = alias
+
+        logger.info(
+            f"Workbook '{workbook_name}' opened successfully with alias '{alias}'!"
+        )
+        return workbook
 
     @keyword
     def create_workbook(
@@ -279,6 +326,7 @@ class ExcelSage:
         workbook_name: str,
         overwrite_if_exists: bool = False,
         sheet_data: List[List[Any]] = None,
+        alias: Optional[str] = None,
     ) -> Workbook:
         """
         The ``Create Workbook`` keyword creates a new Excel workbook with the option to write data into the first sheet during the creation process. It also includes an option to overwrite the file if needed.
@@ -323,10 +371,25 @@ class ExcelSage:
         workbook.save(workbook_name)
         workbook.close()
 
-        self.active_workbook_name = workbook_name
-        self.active_workbook = excel.load_workbook(filename=workbook_name)
-        logger.info("Workbook created and opened for further use.")
-        return self.active_workbook
+        if alias is None:
+            alias = workbook_name
+
+        if alias in self.workbooks:
+            raise SheetAlreadyExistsError(
+                f"A workbook with alias '{alias}' is already open. Use a different alias or close it first."
+            )
+
+        loaded_workbook = excel.load_workbook(filename=workbook_name)
+
+        self.workbooks[alias] = {"workbook": loaded_workbook, "name": workbook_name}
+
+        if self.active_workbook_alias is None:
+            self.active_workbook_alias = alias
+
+        logger.info(
+            f"Workbook '{workbook_name}' created and opened with alias '{alias}' for further use."
+        )
+        return loaded_workbook
 
     @keyword
     def get_sheets(self) -> List[str]:
@@ -342,13 +405,11 @@ class ExcelSage:
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
         |   ${all_sheets}     Get Sheets
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
-
+        active_workbook = self.__get_active_workbook()
         logger.info(
-            f"Sheets in currently opened workbook {self.active_workbook.sheetnames}."
+            f"Sheets in currently opened workbook {active_workbook.sheetnames}."
         )
-        return self.active_workbook.sheetnames
+        return active_workbook.sheetnames
 
     @keyword
     def add_sheet(
@@ -381,8 +442,7 @@ class ExcelSage:
         |   ${newly_added_sheet}     Add Sheet     sheet_name=Sheet1     sheet_pos=1
         |   ${newly_added_sheet}     Add Sheet     sheet_name=Sheet2    sheet_data=${sheet_data}
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker(
             {
@@ -392,18 +452,16 @@ class ExcelSage:
             }
         )
 
-        if sheet_name in self.active_workbook.sheetnames:
+        if sheet_name in active_workbook.sheetnames:
             raise SheetAlreadyExistsError(sheet_name)
 
         if sheet_pos is not None and (
-            sheet_pos < 0 or sheet_pos > len(self.active_workbook.sheetnames)
+            sheet_pos < 0 or sheet_pos > len(active_workbook.sheetnames)
         ):
-            raise InvalidSheetPositionError(
-                sheet_pos, len(self.active_workbook.sheetnames)
-            )
+            raise InvalidSheetPositionError(sheet_pos, len(active_workbook.sheetnames))
 
-        self.active_workbook.create_sheet(title=sheet_name, index=sheet_pos)
-        sheet = self.active_workbook[sheet_name]
+        active_workbook.create_sheet(title=sheet_name, index=sheet_pos)
+        sheet = active_workbook[sheet_name]
 
         if sheet_data:
             for index, row in enumerate(sheet_data):
@@ -413,7 +471,7 @@ class ExcelSage:
                     )
                 sheet.append(row)
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Sheet '{sheet_name}' added successfully")
         return sheet_name
 
@@ -432,9 +490,10 @@ class ExcelSage:
         |   ${deleted_sheet}     Delete Sheet     sheet_name=Sheet1
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        sheet_to_delete = self.active_workbook[sheet_name]
-        self.active_workbook.remove(sheet_to_delete)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook = self.__get_active_workbook()
+        sheet_to_delete = active_workbook[sheet_name]
+        active_workbook.remove(sheet_to_delete)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Sheet '{sheet_name}' deleted successfully")
         return sheet_name
 
@@ -487,7 +546,8 @@ class ExcelSage:
         except ValueError:
             raise InvalidCellAddressError(starting_cell)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         data = sheet[starting_cell : sheet.dimensions.split(":")[-1]]
         data_list = [[cell.value for cell in row] for row in data]
 
@@ -539,22 +599,21 @@ class ExcelSage:
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
         |   ${renamed_sheet}     Rename Sheet     old_name=Sheet1     new_name=New_Sheet
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker(
             {"old_name": [old_name, str], "new_name": [new_name, str]}
         )
 
-        if old_name not in self.active_workbook.sheetnames:
+        if old_name not in active_workbook.sheetnames:
             raise SheetDoesntExistsError(old_name)
 
-        if new_name in self.active_workbook.sheetnames:
+        if new_name in active_workbook.sheetnames:
             raise SheetAlreadyExistsError(new_name)
 
-        sheet = self.active_workbook[old_name]
+        sheet = active_workbook[old_name]
         sheet.title = new_name
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Sheet '{old_name}' renamed to '{new_name}'")
         return new_name
 
@@ -582,7 +641,8 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"cell_name": [cell_name, str]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         try:
             cell_value = sheet[cell_name].value
@@ -592,11 +652,13 @@ class ExcelSage:
             raise InvalidCellAddressError(cell_name)
 
     @keyword
-    def close_workbook(self) -> None:
+    def close_workbook(self, alias: Optional[str] = None) -> None:
         """
-        The ``Close Workbook`` keyword is responsible for closing the active workbook. It first checks if a workbook
-        is currently open by verifying the presence of an active workbook. If no workbook is open, it raises a
-        ``WorkbookNotOpenError``.
+        The ``Close Workbook`` keyword is responsible for closing a workbook. By default, it closes the currently active workbook.
+        If an alias is provided, it closes the workbook with that alias. After closing, the workbook is removed from the open workbooks dictionary.
+        If no workbook is open or the specified alias doesn't exist, it raises a ``WorkbookNotOpenError``.
+
+        If the closed workbook was the active one, the first remaining workbook (if any) becomes the new active workbook.
 
         *Examples*
         | ***** Settings *****
@@ -604,24 +666,39 @@ class ExcelSage:
         |
         | ***** Test Cases *****
         | Example
-        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
-        |   Close WorkBook
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     alias=source
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file2.xlsx     alias=target
+        |   Close Workbook    # Closes the active workbook
+        |   Close Workbook    alias=source    # Closes the workbook with alias 'source'
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        if alias is None:
+            if self.active_workbook_alias is None:
+                raise WorkbookNotOpenError()
+            alias = self.active_workbook_alias
+        if alias not in self.workbooks:
+            raise WorkbookNotOpenError(f"Workbook with alias '{alias}' is not open.")
 
-        self.active_workbook = None
-        self.active_workbook_name = None
-        self.active_sheet = None
-        logger.info("Active workbook closed successfully.")
+        self.workbooks[alias]["workbook"].close()
+
+        del self.workbooks[alias]
+
+        if self.active_workbook_alias == alias:
+            if self.workbooks:
+                self.active_workbook_alias = next(iter(self.workbooks))
+                logger.info(
+                    f"Switched active workbook to '{self.active_workbook_alias}'"
+                )
+            else:
+                self.active_workbook_alias = None
+                self.active_sheet = None
+
+        logger.info(f"Workbook with alias '{alias}' closed successfully!")
 
     @keyword
-    def save_workbook(self) -> None:
+    def switch_workbook(self, alias: str) -> None:
         """
-        The ``Save Workbook`` keyword saves the currently active workbook. It first checks if there is an active
-        workbook open, raising a ``WorkbookNotOpenError`` if no workbook is available. If a workbook is open,
-        the keyword saves it to the file specified, ensuring that any changes made to the workbook are persisted.
-        This keyword does not return anything, as it simply saves the workbook.
+        The ``Switch Workbook`` keyword switches the active workbook to the one specified by the alias.
+        The alias must correspond to an already open workbook. If the alias doesn't exist, it raises a ``WorkbookNotOpenError``.
 
         *Examples*
         | ***** Settings *****
@@ -629,14 +706,54 @@ class ExcelSage:
         |
         | ***** Test Cases *****
         | Example
-        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
-        |   Save WorkBook
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     alias=source
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file2.xlsx     alias=target
+        |   Switch Workbook    alias=target    # Switch to 'target' workbook
+        |   ${sheets}    Get Sheets    # Gets sheets from 'target' workbook
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        self.__argument_type_checker({"alias": [alias, str]})
 
-        self.active_workbook.save(self.active_workbook_name)
-        logger.info(f"Workbook '{self.active_workbook_name}' saved successfully!")
+        if alias not in self.workbooks:
+            raise WorkbookNotOpenError(
+                f"Workbook with alias '{alias}' is not open. Available aliases: {list(self.workbooks.keys())}"
+            )
+
+        self.active_workbook_alias = alias
+        self.active_sheet = None
+        logger.info(f"Switched to workbook with alias '{alias}'")
+
+    @keyword
+    def save_workbook(self, alias: Optional[str] = None) -> None:
+        """
+        The ``Save Workbook`` keyword saves a workbook. By default, it saves the currently active workbook.
+        If an alias is provided, it saves the workbook with that alias. It first checks if there is a workbook
+        open, raising a ``WorkbookNotOpenError`` if no workbook is available or if the specified alias doesn't exist.
+        If a workbook is open, the keyword saves it to the file specified, ensuring that any changes made to the
+        workbook are persisted. This keyword does not return anything, as it simply saves the workbook.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     alias=source
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file2.xlsx     alias=target
+        |   Save Workbook     # Saves the active workbook
+        |   Save Workbook     alias=source    # Saves the workbook with alias 'source'
+        """
+        if alias is None:
+            if self.active_workbook_alias is None:
+                raise WorkbookNotOpenError()
+            alias = self.active_workbook_alias
+        if alias not in self.workbooks:
+            raise WorkbookNotOpenError(f"Workbook with alias '{alias}' is not open.")
+
+        workbook = self.workbooks[alias]["workbook"]
+        workbook_name = self.workbooks[alias]["name"]
+
+        workbook.save(workbook_name)
+        logger.info(f"Workbook '{workbook_name}' saved successfully!")
 
     @keyword
     def set_active_sheet(self, sheet_name: str) -> str:
@@ -658,13 +775,12 @@ class ExcelSage:
         |   ${activae_sheet_name}     Set Active Sheet     sheet_name=Sheet1
         """
         self.__argument_type_checker({"sheet_name": [sheet_name, str, None]})
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
-        if sheet_name not in self.active_workbook.sheetnames:
+        if sheet_name not in active_workbook.sheetnames:
             raise SheetDoesntExistsError(sheet_name)
 
-        self.active_sheet = self.active_workbook[sheet_name]
+        self.active_sheet = active_workbook[sheet_name]
         logger.info(f"Sheet '{sheet_name}' set as active.")
         return sheet_name
 
@@ -695,11 +811,12 @@ class ExcelSage:
         self.__argument_type_checker(
             {"cell_name": [cell_name, str], "cell_value": [cell_value, (str, int, float, bool, type(None))]}
         )
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         try:
             sheet[cell_name] = cell_value
-            self.active_workbook.save(self.active_workbook_name)
+            active_workbook.save(self.__get_active_workbook_name())
             logger.info(
                 f"Written '{cell_value}' to {cell_name} in sheet '{sheet_name}'."
             )
@@ -743,7 +860,8 @@ class ExcelSage:
         start_row = int("".join(filter(str.isdigit, starting_cell)))
         start_col_index = column_index_from_string(start_col_letter)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         headers_range = sheet.iter_rows(
             min_row=start_row,
             max_row=start_row,
@@ -803,7 +921,8 @@ class ExcelSage:
         start_row = int("".join(filter(str.isdigit, starting_cell)))
         start_col_index = column_index_from_string(start_col_letter)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         headers_range = sheet.iter_rows(
             min_row=start_row,
             max_row=start_row,
@@ -863,9 +982,10 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"row_data": [row_data, list]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         sheet.append(row_data)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Row append to sheet {sheet_name}.")
 
     @keyword
@@ -896,12 +1016,13 @@ class ExcelSage:
         if row_index < 1 or row_index > 1048576:
             raise InvalidRowIndexError(row_index)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         sheet.insert_rows(row_index)
         for col_index, value in enumerate(row_data, start=1):
             sheet.cell(row=row_index, column=col_index, value=value)
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Inserted row at index {row_index} in sheet '{sheet_name}'.")
 
     @keyword
@@ -928,9 +1049,10 @@ class ExcelSage:
         if row_index < 1 or row_index > 1048576:
             raise InvalidRowIndexError(row_index)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         sheet.delete_rows(row_index)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Deleted row at index {row_index}.")
 
     @keyword
@@ -958,7 +1080,8 @@ class ExcelSage:
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"col_data": [col_data, (list, tuple)]})
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         if sheet.max_row == 1 and sheet.max_column == 1 and sheet["A1"].value is None:
             next_column = 1
@@ -970,7 +1093,7 @@ class ExcelSage:
         for row_index, value in enumerate(col_data, start=1):
             sheet[f"{col_letter}{row_index}"] = value
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Column appended to sheet {sheet_name}.")
 
     @keyword
@@ -1004,13 +1127,14 @@ class ExcelSage:
         if col_index < 1 or col_index > 16384:
             raise InvalidColumnIndexError(col_index)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         sheet.insert_cols(col_index)
 
         for row_index, value in enumerate(col_data, start=1):
             sheet.cell(row=row_index, column=col_index, value=value)
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Inserted column at index {col_index}.")
 
     @keyword
@@ -1037,9 +1161,10 @@ class ExcelSage:
         if col_index < 1 or col_index > 16384:
             raise InvalidColumnIndexError(col_index)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         sheet.delete_cols(col_index)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Deleted column at index {col_index}.")
 
     @keyword
@@ -1097,13 +1222,12 @@ class ExcelSage:
         if isinstance(column_names_or_letters, str):
             column_names_or_letters = [column_names_or_letters]
 
-        # Extract column letter and starting row from starting cell (e.g., A1 -> A, 1)
         start_col_letter = "".join(filter(str.isalpha, starting_cell))
         start_row = int("".join(filter(str.isdigit, starting_cell)))
         start_col_index = column_index_from_string(start_col_letter)
 
-        # Get the sheet and find the headers
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         headers_range = sheet.iter_rows(
             min_row=start_row,
             max_row=start_row,
@@ -1112,16 +1236,11 @@ class ExcelSage:
         )
         first_row = next(headers_range)
 
-        # Validate and extract headers or column letters
         headers_to_fetch = []
         for col in column_names_or_letters:
-            if (
-                isinstance(col, str) and col in first_row
-            ):  # If header name is provided (e.g., 'Age', 'Name')
+            if isinstance(col, str) and col in first_row:
                 headers_to_fetch.append(col)
-            elif (
-                col.isalpha() and len(col) < 4
-            ):  # If it's a single letter (e.g., 'A', 'B')
+            elif col.isalpha() and len(col) < 4:
                 col_index = column_index_from_string(col)
                 if col_index - 1 < len(first_row):
                     header = first_row[col_index - 1]
@@ -1138,9 +1257,8 @@ class ExcelSage:
             else:
                 raise ValueError(f"Invalid column name or letter: '{col}'")
 
-        # Load data into pandas DataFrame
         df = pd.read_excel(
-            self.active_workbook_name,
+            self.__get_active_workbook_name(),
             sheet_name=sheet_name,
             usecols=headers_to_fetch,
             header=start_row - 1,
@@ -1189,7 +1307,8 @@ class ExcelSage:
         if isinstance(row_indices, int):
             row_indices = [row_indices]
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         row_data = {}
         for row_index in row_indices:
@@ -1225,13 +1344,14 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"password": [password, str]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         if sheet.protection.sheet:
             raise SheetAlreadyProtectedError(sheet_name)
 
         sheet.protection.set_password(password)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Sheet {sheet_name} is protected successfully.")
 
     @keyword
@@ -1251,7 +1371,8 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"password": [password, str]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         if not sheet.protection.sheet:
             raise SheetNotProtectedError(sheet_name)
@@ -1259,7 +1380,7 @@ class ExcelSage:
         sheet.protection.set_password(password)
         sheet.protection.sheet = False
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Sheet {sheet_name} has been unprotected successfully.")
 
     @keyword
@@ -1282,17 +1403,13 @@ class ExcelSage:
         |   Protect Workbook    password=YourPassword       protect_sheets=False
 
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker(
             {"password": [password, str], "protect_sheets": [protect_sheets, bool]}
         )
 
-        if (
-            self.active_workbook.security
-            and self.active_workbook.security.lockStructure
-        ):
+        if active_workbook.security and active_workbook.security.lockStructure:
             raise WorkbookAlreadyProtectedError()
 
         protection = WorkbookProtection()
@@ -1300,10 +1417,10 @@ class ExcelSage:
         protection.lockStructure = True
         protection.lockWindows = True
 
-        self.active_workbook.security = protection
+        active_workbook.security = protection
 
         if protect_sheets:
-            for sheet in self.active_workbook.worksheets:
+            for sheet in active_workbook.worksheets:
                 sheet.protection = SheetProtection(password=password)
                 sheet.protection.sheet = True
                 sheet.protection.formatCells = False
@@ -1318,7 +1435,7 @@ class ExcelSage:
                 sheet.protection.objects = False
                 sheet.protection.scenarios = False
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info("Workbook have been successfully protected.")
 
     @keyword
@@ -1340,23 +1457,22 @@ class ExcelSage:
         |   Unprotect Workbook      unprotect_sheets=True
 
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker({"unprotect_sheets": [unprotect_sheets, bool]})
 
-        if not self.active_workbook.security.lockStructure:
+        if not active_workbook.security.lockStructure:
             raise WorkbookNotProtectedError()
 
-        self.active_workbook.security.lockStructure = False
+        active_workbook.security.lockStructure = False
 
         if unprotect_sheets:
-            for sheet in self.active_workbook.worksheets:
+            for sheet in active_workbook.worksheets:
                 if sheet.protection.sheet:
                     sheet.protection.sheet = False
                     logger.info(f"Sheet {sheet.title} unprotected.")
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info("Workbook have been successfully unprotected.")
 
     @keyword
@@ -1374,13 +1490,14 @@ class ExcelSage:
         |   ${cleared_sheet_name}     Clear Sheet     sheet_name=Sheet1
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         for row in sheet.iter_rows(
             min_row=1, max_col=sheet.max_column, max_row=sheet.max_row
         ):
             for cell in row:
                 cell.value = None
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Cleared sheet {sheet_name}.")
         return sheet_name
 
@@ -1398,8 +1515,7 @@ class ExcelSage:
         |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
         |   ${copied_sheet_name}     Copy Sheet      source_sheet_name=Sheet1     new_sheet_name=CopiedSheet
         """
-        if not self.active_workbook:
-            raise WorkbookNotOpenError()
+        active_workbook = self.__get_active_workbook()
 
         self.__argument_type_checker(
             {
@@ -1409,7 +1525,7 @@ class ExcelSage:
         )
 
         new_sheet_name = new_sheet_name.strip()
-        if source_sheet_name not in self.active_workbook.sheetnames:
+        if source_sheet_name not in active_workbook.sheetnames:
             raise SheetDoesntExistsError(source_sheet_name)
 
         if (
@@ -1421,10 +1537,10 @@ class ExcelSage:
         ):
             raise InvalidSheetNameError(new_sheet_name)
 
-        source = self.active_workbook[source_sheet_name]
-        target = self.active_workbook.copy_worksheet(source)
+        source = active_workbook[source_sheet_name]
+        target = active_workbook.copy_worksheet(source)
         target.title = new_sheet_name
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Coppied sheet {source_sheet_name} to {new_sheet_name}.")
         return new_sheet_name
 
@@ -1454,7 +1570,8 @@ class ExcelSage:
         if occurence.lower().strip() not in ["first", "all"]:
             raise ValueError("Invalid occurence, use either 'first' or 'all'.")
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         for row in sheet.iter_rows():
             for cell in row:
                 if cell.value == value:
@@ -1501,14 +1618,15 @@ class ExcelSage:
         if occurence.lower().strip() not in ["first", "all"]:
             raise ValueError("Invalid occurence, use either 'first' or 'all'.")
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         for row in sheet.iter_rows():
             for cell in row:
                 if cell.value == old_value:
                     if occurence.lower().strip() == "first":
                         cell.value = new_value
-                        self.active_workbook.save(self.active_workbook_name)
+                        active_workbook.save(self.__get_active_workbook_name())
                         logger.info(
                             f"Replaced '{old_value}' with '{new_value}' in cell {cell.coordinate}."
                         )
@@ -1519,7 +1637,7 @@ class ExcelSage:
 
         else:
             if replaced_cells:
-                self.active_workbook.save(self.active_workbook_name)
+                active_workbook.save(self.__get_active_workbook_name())
                 logger.info(
                     f"Replaced '{old_value}' with '{new_value}' in cells {replaced_cells}."
                 )
@@ -1587,7 +1705,8 @@ class ExcelSage:
             }
         )
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         try:
             cell = sheet[cell_name]
@@ -1610,7 +1729,7 @@ class ExcelSage:
 
             if font_color is not None:
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", font_color):
-                    raise InvalidColorError(type="font", color=font_color)
+                    raise InvalidColorError(color_type="font", color=font_color)
 
                 if font_color.startswith("#"):
                     font_color = "FF" + font_color[1:]
@@ -1621,7 +1740,7 @@ class ExcelSage:
             # Apply background color
             if bg_color is not None:
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", bg_color):
-                    raise InvalidColorError(type="background", color=bg_color)
+                    raise InvalidColorError(color_type="background", color=bg_color)
 
                 if bg_color.startswith("#"):
                     bg_color = "FF" + bg_color[1:]
@@ -1682,7 +1801,7 @@ class ExcelSage:
                     )
 
                 if not re.match(r"^#[0-9A-Fa-f]{6}$", border_color):
-                    raise InvalidColorError(type="border", color=border_color)
+                    raise InvalidColorError(color_type="border", color=border_color)
 
                 # Convert color to ARGB
                 if border_color.startswith("#"):
@@ -1706,7 +1825,6 @@ class ExcelSage:
                         border_style=border_style, color=border_color
                     )
 
-                # Apply the border
                 cell.border = Border(**border_sides)
 
             if auto_fit_width:
@@ -1719,7 +1837,7 @@ class ExcelSage:
                 row_height = max(15, max_line_count * 15)
                 sheet.row_dimensions[int(row_num)].height = row_height
 
-            self.active_workbook.save(self.active_workbook_name)
+            active_workbook.save(self.__get_active_workbook_name())
             logger.info(f"Formatted cell {cell_name}.")
 
         except ValueError:
@@ -1874,7 +1992,8 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"cell_range": [cell_range, str]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         try:
             min_col, min_row, max_col, max_row = range_boundaries(cell_range)
@@ -1887,7 +2006,7 @@ class ExcelSage:
             )
 
         sheet.merge_cells(cell_range)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Merged cells in range {cell_range}.")
 
     @keyword
@@ -1905,7 +2024,8 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker({"cell_range": [cell_range, str]})
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
 
         try:
             min_col, min_row, max_col, max_row = range_boundaries(cell_range)
@@ -1918,7 +2038,7 @@ class ExcelSage:
             )
 
         sheet.unmerge_cells(cell_range)
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(f"Unmerged cells in range {cell_range}.")
 
     @keyword
@@ -1963,7 +2083,8 @@ class ExcelSage:
         start_row = int("".join(filter(str.isdigit, starting_cell)))
         start_col_index = column_index_from_string(start_col_letter)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         headers_range = sheet.iter_rows(
             min_row=start_row,
             max_row=start_row,
@@ -1994,7 +2115,7 @@ class ExcelSage:
             )
 
         df = pd.read_excel(
-            self.active_workbook_name,
+            self.__get_active_workbook_name(),
             sheet_name=sheet_name,
             usecols=first_row,
             header=start_row - 1,
@@ -2007,7 +2128,7 @@ class ExcelSage:
             for col_idx, value in enumerate(row, start=start_col_index):
                 sheet.cell(row=row_idx, column=col_idx, value=value)
 
-        self.active_workbook.save(self.active_workbook_name)
+        active_workbook.save(self.__get_active_workbook_name())
         logger.info(
             f"Sorted column '{column_name_or_letter}' and saved changes to '{sheet_name}'."
         )
@@ -2026,17 +2147,28 @@ class ExcelSage:
         output_format: str = "list",
         starting_cell: str = "A1",
         sheet_name: Optional[str] = None,
-    ) -> Union[List[Any], dict, DataFrame]:
+        delete: bool = False,
+        output_filename: Optional[str] = None,
+        overwrite_if_exists: bool = False,
+    ) -> Union[List[Any], dict, DataFrame, int]:
         """
         The `Find Duplicates`` keyword identifies and retrieves duplicate rows from the specified column(s) in the Excel sheet.
         It can check for duplicates based on either column names or column letters, and the results can be returned in different formats such as a list, dictionary, or pandas DataFrame.
         Additionally, you can specify a starting cell from which the headers begin, and filter duplicates from that point onward.
 
+        When `delete=True`, the duplicate rows are removed from the sheet (keeping the first occurrence) and saved to a file.
+        In this case, `output_filename` is mandatory to avoid modifying the source file directly.
+        The function returns the number of rows deleted (int) instead of the duplicate data.
+
+        The `overwrite_if_exists` parameter controls whether an existing output file can be overwritten.
+        If `overwrite_if_exists=False` (default) and the output file already exists, a `FileAlreadyExistsError` will be raised.
+        Set `overwrite_if_exists=True` to allow overwriting existing files.
+
         *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
-        |***** Variables *****
+        | ***** Variables *****
         | @{columns}    Age    Gender
         |
         | ***** Test Cases *****
@@ -2046,9 +2178,28 @@ class ExcelSage:
         |   ${duplicates}    Find Duplicates    column_names_or_letters=${columns}    output_format=dict    sheet_name=Sheet1
         |   ${duplicates}    Find Duplicates    column_names_or_letters=B
         |   ${duplicates}    Find Duplicates     output_format=dataframe     starting_cell=D6
+        |   ${deleted_count}    Find Duplicates    column_names_or_letters=Age    sheet_name=Sheet1    delete=True    output_filename=\\path\\to\\output.xlsx
+        |   ${deleted_count}    Find Duplicates    column_names_or_letters=Age    sheet_name=Sheet1    delete=True    output_filename=\\path\\to\\output.xlsx    overwrite_if_exists=True
         """
 
         sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        # Validate that output_filename is provided when delete=True
+        if delete and not output_filename:
+            raise ValueError(
+                "When delete=True, output_filename is mandatory to avoid modifying the source file. "
+                "Please provide an output_filename parameter."
+            )
+
+        # Validate overwrite_if_exists when output_filename is provided
+        if (
+            delete
+            and output_filename
+            and os.path.exists(output_filename)
+            and not overwrite_if_exists
+        ):
+            raise FileAlreadyExistsError(output_filename)
+
         self.__argument_type_checker(
             {
                 "column_names_or_letters": [
@@ -2058,10 +2209,17 @@ class ExcelSage:
                 ],
                 "output_format": [output_format, str],
                 "starting_cell": [starting_cell, str],
+                "overwrite_if_exists": [overwrite_if_exists, bool],
+                "delete": [delete, bool],
+                "output_filename": [output_filename, str, None],
             }
         )
 
-        if output_format.lower().strip() not in ["list", "dict", "dataframe"]:
+        if not delete and output_format.lower().strip() not in [
+            "list",
+            "dict",
+            "dataframe",
+        ]:
             raise ValueError(
                 "Invalid output format. Use 'list', 'dict', or 'dataframe'."
             )
@@ -2071,15 +2229,18 @@ class ExcelSage:
         except ValueError:
             raise InvalidCellAddressError(starting_cell)
 
+        start_row = int("".join(filter(str.isdigit, starting_cell)))
+        header_row = start_row - 1
+
         if column_names_or_letters:
             if isinstance(column_names_or_letters, str):
                 column_names_or_letters = [column_names_or_letters]
 
             start_col_letter = "".join(filter(str.isalpha, starting_cell))
-            start_row = int("".join(filter(str.isdigit, starting_cell)))
             start_col_index = column_index_from_string(start_col_letter)
 
-            sheet = self.active_workbook[sheet_name]
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
             headers_range = sheet.iter_rows(
                 min_row=start_row,
                 max_row=start_row,
@@ -2110,15 +2271,130 @@ class ExcelSage:
                     raise ValueError(f"Invalid column name or letter: '{col}'")
 
             df = pd.read_excel(
-                self.active_workbook_name,
+                self.__get_active_workbook_name(),
                 sheet_name=sheet_name,
                 usecols=first_row,
-                header=start_row - 1,
+                header=header_row,
             )
             duplicates = df[df.duplicated(subset=headers_to_fetch, keep=False)]
         else:
-            df = pd.read_excel(self.active_workbook_name, sheet_name=sheet_name)
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                values_only=True,
+            )
+            first_row = next(headers_range)
+
+            # Read only columns from starting_cell onwards
+            df = pd.read_excel(
+                self.__get_active_workbook_name(),
+                sheet_name=sheet_name,
+                usecols=first_row,
+                header=header_row,
+            )
             duplicates = df[df.duplicated(keep=False)]
+
+        if delete:
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_row_num = int("".join(filter(str.isdigit, starting_cell)))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            if column_names_or_letters:
+                df_full = df.copy()
+                df_unique = df_full.drop_duplicates(
+                    subset=headers_to_fetch, keep="first"
+                )
+                original_columns = df_full.columns.tolist()
+            else:
+                df_full = df.copy()
+                df_unique = df_full.drop_duplicates(keep="first")
+                original_columns = df_full.columns.tolist()
+
+            rows_deleted = len(df_full) - len(df_unique)
+
+            workbook_path = (
+                output_filename
+                if output_filename
+                else self.__get_active_workbook_name()
+            )
+            source_path = self.__get_active_workbook_name()
+
+            if (
+                self.active_workbook_alias
+                and self.active_workbook_alias in self.workbooks
+            ):
+                self.workbooks[self.active_workbook_alias]["workbook"].close()
+
+            source_wb = excel.load_workbook(source_path)
+            source_ws = source_wb[sheet_name]
+
+            max_row = source_ws.max_row
+            max_col = source_ws.max_column
+
+            original_num_cols = len(original_columns)
+            end_col_index = start_col_index + original_num_cols - 1
+
+            data_start_row = start_row_num + 1
+
+            original_max_data_row = data_start_row + len(df_full) - 1
+            if max_row >= data_start_row:
+                clear_to_row = max(original_max_data_row, max_row)
+                for row in range(data_start_row, clear_to_row + 1):
+                    for col in range(
+                        start_col_index, min(end_col_index + 1, max_col + 1)
+                    ):
+                        cell = source_ws.cell(row=row, column=col)
+                        cell.value = None
+
+            if original_num_cols > 0:
+                for col_idx, header_value in enumerate(original_columns):
+                    target_col = start_col_index + col_idx
+                    source_ws.cell(
+                        row=start_row_num, column=target_col, value=header_value
+                    )
+
+            data_to_write = df_unique.values.tolist()
+            for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
+                for col_idx, value in enumerate(row_data):
+                    target_col = start_col_index + col_idx
+                    source_ws.cell(row=row_idx, column=target_col, value=value)
+
+            last_written_row = data_start_row + len(data_to_write) - 1
+            original_last_data_row = data_start_row + len(df_full) - 1
+
+            if original_last_data_row > last_written_row:
+                rows_to_delete = original_last_data_row - last_written_row
+                source_ws.delete_rows(last_written_row + 1, rows_to_delete)
+
+            source_wb.save(workbook_path)
+            source_wb.close()
+
+            if output_filename:
+                loaded_workbook = excel.load_workbook(workbook_path)
+                if workbook_path not in self.workbooks:
+                    self.workbooks[workbook_path] = {
+                        "workbook": loaded_workbook,
+                        "name": workbook_path,
+                    }
+                    self.active_workbook_alias = workbook_path
+            else:
+                loaded_workbook = excel.load_workbook(workbook_path)
+                if (
+                    self.active_workbook_alias
+                    and self.active_workbook_alias in self.workbooks
+                ):
+                    self.workbooks[self.active_workbook_alias]["workbook"] = (
+                        loaded_workbook
+                    )
+                    self.workbooks[self.active_workbook_alias]["name"] = workbook_path
+
+            return rows_deleted
 
         if output_format.lower().strip() == "list":
             return duplicates.values.tolist()
@@ -2126,6 +2402,293 @@ class ExcelSage:
             return duplicates.to_dict(orient="list")
         elif output_format.lower().strip() == "dataframe":
             return duplicates.reset_index(drop=True)
+
+    @keyword
+    def remove_empty_rows(
+        self,
+        output_filename: str,
+        sheet_name: Optional[str] = None,
+        column_names_or_letters: Optional[Union[str, List[str], Tuple[str]]] = None,
+        overwrite_if_exists: bool = False,
+        starting_cell: str = "A1",
+    ) -> int:
+        """
+        The ``Remove Empty Rows`` keyword removes empty rows from the specified sheet in the active workbook.
+        It can check for empty rows based on either all cells in a row or only specified columns.
+
+        If `column_names_or_letters=None`, a row is considered empty if ALL cells in that row are empty.
+        If `column_names_or_letters` is specified, only those columns are checked for emptiness.
+
+        The function returns the number of rows removed.
+
+        The `output_filename` parameter is mandatory to avoid modifying the source file directly.
+        The `overwrite_if_exists` parameter controls whether an existing output file can be overwritten.
+        If `overwrite_if_exists=False` (default) and the output file already exists, a `FileAlreadyExistsError` will be raised.
+        Set `overwrite_if_exists=True` to allow overwriting existing files.
+
+        The `starting_cell` parameter specifies where the data begins (including headers), allowing you to preserve
+        the structure of the Excel file (e.g., headers, formatting, or data that appears before the starting cell).
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
+        |   ${removed}    Remove Empty Rows    sheet_name=Sheet1    output_filename=\\path\\to\\output.xlsx
+        |   ${removed}    Remove Empty Rows    column_names_or_letters=Age    sheet_name=Sheet1    output_filename=\\path\\to\\output.xlsx
+        |   ${removed}    Remove Empty Rows    column_names_or_letters=${columns}    starting_cell=D6    output_filename=\\path\\to\\output.xlsx    overwrite_if_exists=True
+        """
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        if os.path.exists(output_filename) and not overwrite_if_exists:
+            raise FileAlreadyExistsError(output_filename)
+
+        self.__argument_type_checker(
+            {
+                "column_names_or_letters": [
+                    column_names_or_letters,
+                    (str, list, tuple),
+                    None,
+                ],
+                "starting_cell": [starting_cell, str],
+                "overwrite_if_exists": [overwrite_if_exists, bool],
+                "output_filename": [output_filename, str],
+            }
+        )
+
+        try:
+            range_boundaries(starting_cell)
+        except ValueError:
+            raise InvalidCellAddressError(starting_cell)
+
+        start_row = int("".join(filter(str.isdigit, starting_cell)))
+        header_row = start_row - 1
+
+        if column_names_or_letters:
+            if isinstance(column_names_or_letters, str):
+                column_names_or_letters = [column_names_or_letters]
+
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                values_only=True,
+            )
+            first_row = next(headers_range)
+
+            headers_to_fetch = []
+            for col in column_names_or_letters:
+                if isinstance(col, str) and col in first_row:
+                    headers_to_fetch.append(col)
+                elif col.isalpha() and len(col) < 4:
+                    col_index = column_index_from_string(col)
+                    if col_index - 1 < len(first_row):
+                        header = first_row[col_index - 1]
+                        for col in first_row:
+                            if not isinstance(col, str):
+                                raise ValueError(
+                                    f"{sheet_name} does not have a valid string header: '{col}' found."
+                                )
+                            headers_to_fetch.append(header)
+                    else:
+                        raise ValueError(
+                            f"Column letter '{col}' is out of bounds for the provided sheet."
+                        )
+                else:
+                    raise ValueError(f"Invalid column name or letter: '{col}'")
+
+            df = pd.read_excel(
+                self.__get_active_workbook_name(),
+                sheet_name=sheet_name,
+                usecols=first_row,
+                header=header_row,
+            )
+            df = df.replace("", pd.NA)
+            df_filtered = df.dropna(subset=headers_to_fetch, how="all")
+            original_columns = df.columns.tolist()
+        else:
+            start_col_letter = "".join(filter(str.isalpha, starting_cell))
+            start_col_index = column_index_from_string(start_col_letter)
+
+            active_workbook = self.__get_active_workbook()
+            sheet = active_workbook[sheet_name]
+            max_col = sheet.max_column
+            headers_range = sheet.iter_rows(
+                min_row=start_row,
+                max_row=start_row,
+                min_col=start_col_index,
+                max_col=min(max_col, start_col_index + 100),
+                values_only=True,
+            )
+            first_row = list(next(headers_range))
+            while first_row and first_row[-1] is None:
+                first_row.pop()
+
+            first_row_filtered = [col for col in first_row if col is not None]
+
+            max_row = sheet.max_row
+            actual_last_data_row = start_row
+            for row_idx in range(
+                start_row + 1, min(max_row + 1, start_row + 10000)
+            ):  # Limit search
+                for col_idx in range(start_col_index, start_col_index + len(first_row)):
+                    cell = sheet.cell(row=row_idx, column=col_idx)
+                    if cell.value is not None and str(cell.value).strip() != "":
+                        actual_last_data_row = row_idx
+                        break
+
+            read_up_to = actual_last_data_row
+            if actual_last_data_row < max_row:
+                next_row = actual_last_data_row + 1
+                has_any_data_anywhere = False
+                for col_idx in range(1, min(sheet.max_column + 1, 100)):
+                    cell = sheet.cell(row=next_row, column=col_idx)
+                    if cell.value is not None and str(cell.value).strip() != "":
+                        has_any_data_anywhere = True
+                        break
+
+                if has_any_data_anywhere or (
+                    next_row == actual_last_data_row + 1
+                    and max_row == actual_last_data_row + 1
+                ):
+                    read_up_to = next_row
+
+            max_row = read_up_to
+            if not first_row_filtered:
+                num_cols = len(first_row)
+                data_rows = []
+                for row in sheet.iter_rows(
+                    min_row=start_row + 1,
+                    max_row=max_row,
+                    min_col=start_col_index,
+                    max_col=start_col_index + num_cols - 1,
+                    values_only=True,
+                ):
+                    data_rows.append(list(row))
+
+                df = pd.DataFrame(data_rows, columns=first_row[:num_cols])
+            else:
+                num_cols = len(first_row_filtered)
+                col_name_to_idx = {}
+                for idx, val in enumerate(first_row):
+                    if val is not None and val in first_row_filtered:
+                        col_name_to_idx[val] = start_col_index + idx
+
+                data_rows = []
+                for row in sheet.iter_rows(
+                    min_row=start_row + 1,
+                    max_row=max_row,
+                    min_col=start_col_index,
+                    max_col=start_col_index + len(first_row) - 1,
+                    values_only=True,
+                ):
+                    row_data = list(row)
+                    filtered_row = []
+                    for col_name in first_row_filtered:
+                        col_idx = col_name_to_idx[col_name] - start_col_index
+                        if col_idx < len(row_data):
+                            filtered_row.append(row_data[col_idx])
+                        else:
+                            filtered_row.append(None)
+                    data_rows.append(filtered_row)
+
+                df = pd.DataFrame(data_rows, columns=first_row_filtered)
+
+            df = df.replace("", pd.NA)
+            df_filtered = df.dropna(axis=0, how="all")
+            original_columns = df.columns.tolist()
+
+        rows_removed = len(df) - len(df_filtered)
+
+        workbook_path = output_filename
+        source_path = self.__get_active_workbook_name()
+
+        if rows_removed == 0:
+            if (
+                self.active_workbook_alias
+                and self.active_workbook_alias in self.workbooks
+            ):
+                self.workbooks[self.active_workbook_alias]["workbook"].close()
+
+            source_wb = excel.load_workbook(source_path)
+            source_wb.save(workbook_path)
+            source_wb.close()
+
+            loaded_workbook = excel.load_workbook(workbook_path)
+            if workbook_path not in self.workbooks:
+                self.workbooks[workbook_path] = {
+                    "workbook": loaded_workbook,
+                    "name": workbook_path,
+                }
+                self.active_workbook_alias = workbook_path
+
+            logger.info(f"No empty rows found in sheet '{sheet_name}'.")
+            return 0
+
+        if self.active_workbook_alias and self.active_workbook_alias in self.workbooks:
+            self.workbooks[self.active_workbook_alias]["workbook"].close()
+
+        source_wb = excel.load_workbook(source_path)
+        source_ws = source_wb[sheet_name]
+
+        max_row = source_ws.max_row
+        max_col = source_ws.max_column
+
+        start_col_letter = "".join(filter(str.isalpha, starting_cell))
+        start_row_num = int("".join(filter(str.isdigit, starting_cell)))
+        start_col_index = column_index_from_string(start_col_letter)
+
+        original_num_cols = len(original_columns)
+        end_col_index = start_col_index + original_num_cols - 1
+
+        data_start_row = start_row_num + 1
+
+        original_max_data_row = data_start_row + len(df) - 1
+        if max_row >= data_start_row:
+            clear_to_row = max(original_max_data_row, max_row)
+            for row in range(data_start_row, clear_to_row + 1):
+                for col in range(start_col_index, min(end_col_index + 1, max_col + 1)):
+                    cell = source_ws.cell(row=row, column=col)
+                    cell.value = None
+
+        if original_num_cols > 0:
+            for col_idx, header_value in enumerate(original_columns):
+                target_col = start_col_index + col_idx
+                source_ws.cell(row=start_row_num, column=target_col, value=header_value)
+
+        data_to_write = df_filtered.values.tolist()
+        for row_idx, row_data in enumerate(data_to_write, start=data_start_row):
+            for col_idx, value in enumerate(row_data):
+                target_col = start_col_index + col_idx
+                source_ws.cell(row=row_idx, column=target_col, value=value)
+
+        last_written_row = data_start_row + len(data_to_write) - 1
+        original_last_data_row = data_start_row + len(df) - 1
+
+        if original_last_data_row > last_written_row:
+            rows_to_delete = original_last_data_row - last_written_row
+            source_ws.delete_rows(last_written_row + 1, rows_to_delete)
+
+        source_wb.save(workbook_path)
+        source_wb.close()
+
+        loaded_workbook = excel.load_workbook(workbook_path)
+        if workbook_path not in self.workbooks:
+            self.workbooks[workbook_path] = {
+                "workbook": loaded_workbook,
+                "name": workbook_path,
+            }
+            self.active_workbook_alias = workbook_path
+
+        logger.info(f"Removed {rows_removed} empty row(s) from sheet '{sheet_name}'.")
+        return rows_removed
 
     @keyword
     def compare_excels(
@@ -2229,29 +2792,29 @@ class ExcelSage:
         filename: str,
         sheet_name: str,
         output_filename: str,
-        separator: str = ',',
+        separator: str = ",",
         overwrite_if_exists: bool = False,
     ) -> str:
         """
         The `Export To CSV` keyword reads the data from a specified sheet in an Excel file and exports it to a CSV file.
-        
+
         *Note*
         Separator must be a string of length 1
-        
+
         *Examples*
         | ***** Settings *****
         | Library    ExcelSage
         |
         | ***** Test Cases *****
         | Example
-        |   Export To CSV     filename=\\path\\to\\excel\\file.xlsx    sheet_name=Sheet1    output_filename=\\path\\to\\csv\\file.csv    separator=;  
+        |   Export To CSV     filename=\\path\\to\\excel\\file.xlsx    sheet_name=Sheet1    output_filename=\\path\\to\\csv\\file.csv    separator=;
         """
         self.__argument_type_checker(
             {
                 "filename": [filename, str],
                 "output_filename": [output_filename, str],
                 "overwrite_if_exists": [overwrite_if_exists, bool],
-                "separator": [separator, str]
+                "separator": [separator, str],
             }
         )
         if not os.path.exists(filename):
@@ -2292,7 +2855,8 @@ class ExcelSage:
         start_row = int("".join(filter(str.isdigit, starting_cell)))
         start_col_index = column_index_from_string(start_col_letter)
 
-        sheet = self.active_workbook[sheet_name]
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
         headers_range = sheet.iter_rows(
             min_row=start_row,
             max_row=start_row,

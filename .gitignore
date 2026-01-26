@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Auto-generated documentation (deployed to GitHub Pages automatically)
+docs/index.html
+
 # PyBuilder
 .pybuilder/
 target/
@@ -161,3 +164,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 .vscode
+
+# Scripts
+*.sh
