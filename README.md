@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="assets/logo.png" alt="ExcelSage Logo" width="250" height="250"/>
+    <img src="https://github.com/deekshith-poojary98/robotframework-excelsage/blob/main/assets/logo.png" alt="ExcelSage Logo" width="250" height="250"/>
     <h1>ExcelSage Library</h1>
 </div>
 
