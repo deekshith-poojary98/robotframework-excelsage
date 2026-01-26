@@ -558,6 +558,45 @@ def test_save_workbook_workbook_not_open(setup_teardown):
     )
 
 
+def test_save_workbook_by_alias(setup_teardown):
+    test_file = copy_test_excel_file(
+        destination_file=os.path.join(DATA_DIR, "test_save_by_alias.xlsx")
+    )
+    
+    try:
+        exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+        exl.open_workbook(workbook_name=test_file, alias="target")
+        
+        assert_that(exl.workbooks).is_length(2)
+        assert_that(exl.active_workbook_alias).is_equal_to("source")
+        
+        exl.switch_workbook(alias="target")
+        exl.add_sheet(sheet_name="NewSheet")
+        
+        exl.save_workbook(alias="target")
+        
+        workbook = excel.load_workbook(filename=test_file)
+        assert_that(workbook.sheetnames).contains("NewSheet")
+        workbook.close()
+        
+        assert_that(exl.active_workbook_alias).is_equal_to("target")
+        
+    finally:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_save_workbook_invalid_alias(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH, alias="source")
+    
+    with pytest.raises(WorkbookNotOpenError) as exc_info:
+        exl.save_workbook(alias="invalid_alias")
+    
+    assert_that(str(exc_info.value)).is_equal_to(
+        "Workbook with alias 'invalid_alias' is not open."
+    )
+
+
 def test_set_active_sheet_success(setup_teardown):
     exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
     active_sheet = exl.set_active_sheet(sheet_name="Offset_table")

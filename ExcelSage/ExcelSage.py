@@ -723,12 +723,13 @@ class ExcelSage:
         logger.info(f"Switched to workbook with alias '{alias}'")
 
     @keyword
-    def save_workbook(self) -> None:
+    def save_workbook(self, alias: Optional[str] = None) -> None:
         """
-        The ``Save Workbook`` keyword saves the currently active workbook. It first checks if there is an active
-        workbook open, raising a ``WorkbookNotOpenError`` if no workbook is available. If a workbook is open,
-        the keyword saves it to the file specified, ensuring that any changes made to the workbook are persisted.
-        This keyword does not return anything, as it simply saves the workbook.
+        The ``Save Workbook`` keyword saves a workbook. By default, it saves the currently active workbook.
+        If an alias is provided, it saves the workbook with that alias. It first checks if there is a workbook
+        open, raising a ``WorkbookNotOpenError`` if no workbook is available or if the specified alias doesn't exist.
+        If a workbook is open, the keyword saves it to the file specified, ensuring that any changes made to the
+        workbook are persisted. This keyword does not return anything, as it simply saves the workbook.
 
         *Examples*
         | ***** Settings *****
@@ -736,15 +737,23 @@ class ExcelSage:
         |
         | ***** Test Cases *****
         | Example
-        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx
-        |   Save WorkBook
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file.xlsx     alias=source
+        |   Open Workbook     workbook_name=\\path\\to\\excel\\file2.xlsx     alias=target
+        |   Save Workbook     # Saves the active workbook
+        |   Save Workbook     alias=source    # Saves the workbook with alias 'source'
         """
-        active_workbook = self.__get_active_workbook()
+        if alias is None:
+            if self.active_workbook_alias is None:
+                raise WorkbookNotOpenError()
+            alias = self.active_workbook_alias
+        if alias not in self.workbooks:
+            raise WorkbookNotOpenError(f"Workbook with alias '{alias}' is not open.")
 
-        active_workbook.save(self.__get_active_workbook_name())
-        logger.info(
-            f"Workbook '{self.__get_active_workbook_name()}' saved successfully!"
-        )
+        workbook = self.workbooks[alias]["workbook"]
+        workbook_name = self.workbooks[alias]["name"]
+
+        workbook.save(workbook_name)
+        logger.info(f"Workbook '{workbook_name}' saved successfully!")
 
     @keyword
     def set_active_sheet(self, sheet_name: str) -> str:
@@ -2159,7 +2168,7 @@ class ExcelSage:
         | ***** Settings *****
         | Library    ExcelSage
         |
-        |***** Variables *****
+        | ***** Variables *****
         | @{columns}    Age    Gender
         |
         | ***** Test Cases *****

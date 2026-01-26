@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Auto-generated documentation (deployed to GitHub Pages automatically)
+docs/index.html
+
 # PyBuilder
 .pybuilder/
 target/
