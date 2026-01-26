@@ -4,9 +4,9 @@ coverage
 et_xmlfile
 iniconfig
 numpy
-openpyxl
+# openpyxl
 packaging
-pandas
+# pandas
 pluggy
 Pygments
 pytest
