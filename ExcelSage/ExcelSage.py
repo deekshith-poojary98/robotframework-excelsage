@@ -14,7 +14,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 class ExcelError(Exception): ...
@@ -670,7 +670,7 @@ class ExcelSage:
 
     @keyword
     def write_to_cell(
-        self, cell_name: str, cell_value: str, sheet_name: Optional[str] = None
+        self, cell_name: str, cell_value: Union[str, int, float, bool, type(None)], sheet_name: Optional[str] = None
     ) -> None:
         """
         The ``Write To Cell`` keyword writes a specified value into a cell in the active workbook. It first checks if
@@ -693,7 +693,7 @@ class ExcelSage:
         """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker(
-            {"cell_name": [cell_name, str], "cell_value": [cell_value, str]}
+            {"cell_name": [cell_name, str], "cell_value": [cell_value, (str, int, float, bool, type(None))]}
         )
         sheet = self.active_workbook[sheet_name]
 
