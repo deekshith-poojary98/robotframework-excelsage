@@ -2911,7 +2911,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Cell Value Should Be`` keyword asserts that a specific cell matches the expected value.
+        The ``Cell Value Should Be`` keyword asserts that a specific cell matches the expected value. If ``sheet_name`` is not provided, it defaults to the currently active sheet.
 
         You can optionally pass a custom failure ``message``.
 
@@ -2949,9 +2949,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Cell Should Be Empty`` keyword asserts that a specific cell is empty (None or empty string).
-
-        You can optionally pass a custom failure ``message``.
+        The ``Cell Should Be Empty`` keyword asserts that a specific cell is empty (None or empty string). If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -2986,9 +2984,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Row Count Should Be`` keyword asserts that the sheet row count matches the expected value.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Row Count Should Be`` keyword asserts that the sheet row count matches the expected value. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -3024,9 +3020,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Column Count Should Be`` keyword asserts that the sheet column count matches the expected value.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Column Count Should Be`` keyword asserts that the sheet column count matches the expected value. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -3063,9 +3057,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Column Should Contain`` keyword asserts that a column contains the expected value.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Column Should Contain`` keyword asserts that a column contains the expected value. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -3159,9 +3151,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Column Should Not Contain Duplicates`` keyword asserts that a column has no duplicate values.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Column Should Not Contain Duplicates`` keyword asserts that a column has no duplicate values. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -3193,9 +3183,7 @@ class ExcelSage:
         self, sheet_name: Optional[str] = None, message: Optional[str] = None
     ) -> None:
         """
-        The ``Sheet Should Not Contain Empty Rows`` keyword asserts that the sheet has no fully empty rows.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Sheet Should Not Contain Empty Rows`` keyword asserts that the sheet has no fully empty rows. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
@@ -3232,9 +3220,7 @@ class ExcelSage:
         message: Optional[str] = None,
     ) -> None:
         """
-        The ``Cell Should Match Pattern`` keyword asserts that a cell value matches a regex pattern.
-
-        You can optionally pass a custom failure ``message``.
+        The ``Cell Should Match Pattern`` keyword asserts that a cell value matches a regex pattern. If ``sheet_name`` is not provided, it defaults to the currently active sheet. You can optionally pass a custom failure ``message``.
 
         *Examples*
         | ***** Settings *****
