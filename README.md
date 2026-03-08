@@ -1,6 +1,9 @@
 <div align="center">
-    <img src="https://raw.githubusercontent.com/deekshith-poojary98/robotframework-excelsage/main/assets/logo.png" alt="ExcelSage Logo" width="250" height="250"/>
-    <h1>ExcelSage Library</h1>
+
+![ExcelSage Logo](https://raw.githubusercontent.com/deekshith-poojary98/robotframework-excelsage/main/assets/logo.png)
+
+# ExcelSage Library
+
 </div>
 
 [![PyPI version](https://badge.fury.io/py/robotframework-excelsage.svg)](https://badge.fury.io/py/robotframework-excelsage)
