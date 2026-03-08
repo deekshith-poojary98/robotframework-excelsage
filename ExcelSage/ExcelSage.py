@@ -3,6 +3,7 @@ import os
 import warnings
 from robot.api import logger
 from robot.api.deco import keyword, not_keyword
+from robot.libraries.BuiltIn import BuiltIn
 import pandas as pd
 from pandas import DataFrame
 from pathlib import Path
@@ -14,8 +15,9 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
+# TODO: Consider expanding __get_column_values_by_name_or_letter to support starting_cell/header row so it can be reused in column-based keywords.
 
 class ExcelError(Exception):
     """Base exception class for all Excel-related errors."""
@@ -275,6 +277,39 @@ class ExcelSage:
                     raise TypeError(
                         f"'{arg_name}' must be a '{expected_type_names}', got '{type(value[0]).__name__}'"
                     )
+
+    @not_keyword
+    def __get_column_values_by_name_or_letter(
+        self, sheet: excel.worksheet.worksheet.Worksheet, column_name_or_letter: str
+    ) -> List[Any]:
+        self.__argument_type_checker(
+            {"column_name_or_letter": [column_name_or_letter, str]}
+        )
+        headers = [cell.value for cell in sheet[1]]
+
+        if column_name_or_letter in headers:
+            column_index = headers.index(column_name_or_letter) + 1
+        elif column_name_or_letter.isalpha() and len(column_name_or_letter) < 4:
+            column_index = column_index_from_string(column_name_or_letter)
+        else:
+            raise ValueError(
+                f"Invalid column name or letter: '{column_name_or_letter}'."
+            )
+
+        if column_index > sheet.max_column:
+            raise ValueError(
+                f"Column '{column_name_or_letter}' is out of bounds for the provided sheet."
+            )
+
+        column_values = next(
+            sheet.iter_cols(
+                min_col=column_index,
+                max_col=column_index,
+                min_row=2,
+                values_only=True,
+            )
+        )
+        return list(column_values)
 
     @keyword
     def open_workbook(
@@ -786,7 +821,7 @@ class ExcelSage:
 
     @keyword
     def write_to_cell(
-        self, cell_name: str, cell_value: Union[str, int, float, bool, type(None)], sheet_name: Optional[str] = None
+        self, cell_name: str, cell_value: Union[str, int, float, bool, None], sheet_name: Optional[str] = None
     ) -> None:
         """
         The ``Write To Cell`` keyword writes a specified value into a cell in the active workbook. It first checks if
@@ -2866,3 +2901,167 @@ class ExcelSage:
         column_headers = next(headers_range)
 
         return column_headers
+
+    @keyword
+    def cell_value_should_be(
+        self,
+        cell_name: str,
+        expected_value: Any,
+        sheet_name: Optional[str] = None,
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"cell_name": [cell_name, str]})
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        actual_value = sheet[cell_name].value
+
+        BuiltIn().should_be_equal(
+            actual_value,
+            expected_value,
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be '{expected_value}', but found '{actual_value}'.",
+        )
+
+    @keyword
+    def cell_should_be_empty(
+        self, cell_name: str, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"cell_name": [cell_name, str]})
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        actual_value = sheet[cell_name].value
+
+        BuiltIn().should_be_true(
+            actual_value is None or actual_value == "",
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be empty, but found '{actual_value}'.",
+        )
+
+    @keyword
+    def row_count_should_be(
+        self, expected_count: int, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"expected_count": [expected_count, int]})
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        actual_count = sheet.max_row
+
+        BuiltIn().should_be_equal(
+            actual_count,
+            expected_count,
+            f"Expected {expected_count} rows in sheet '{sheet_name}', but found {actual_count}.",
+        )
+
+    @keyword
+    def column_count_should_be(
+        self, expected_count: int, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"expected_count": [expected_count, int]})
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        actual_count = sheet.max_column
+
+        BuiltIn().should_be_equal(
+            actual_count,
+            expected_count,
+            f"Expected {expected_count} columns in sheet '{sheet_name}', but found {actual_count}.",
+        )
+
+    @keyword
+    def column_should_contain(
+        self,
+        column_name_or_letter: str,
+        expected_value: Any,
+        sheet_name: Optional[str] = None,
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        column_values = self.__get_column_values_by_name_or_letter(
+            sheet, column_name_or_letter
+        )
+
+        BuiltIn().should_contain(
+            column_values,
+            expected_value,
+            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to contain '{expected_value}', but it did not.",
+        )
+
+    @keyword
+    def sheet_should_exist(self, sheet_name: str) -> None:
+        self.__argument_type_checker({"sheet_name": [sheet_name, str]})
+        active_workbook = self.__get_active_workbook()
+
+        BuiltIn().should_be_true(
+            sheet_name in active_workbook.sheetnames,
+            f"Expected sheet '{sheet_name}' to exist, but it was not found.",
+        )
+
+    @keyword
+    def workbook_should_contain_sheet(self, sheet_name: str) -> None:
+        self.__argument_type_checker({"sheet_name": [sheet_name, str]})
+        active_workbook = self.__get_active_workbook()
+
+        BuiltIn().should_be_true(
+            sheet_name in active_workbook.sheetnames,
+            f"Expected workbook to contain sheet '{sheet_name}', but it was not found.",
+        )
+
+    @keyword
+    def column_should_not_contain_duplicates(
+        self, column_name_or_letter: str, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        column_values = self.__get_column_values_by_name_or_letter(
+            sheet, column_name_or_letter
+        )
+
+        BuiltIn().should_be_true(
+            len(column_values) == len(set(column_values)),
+            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to have no duplicates, but duplicates were found.",
+        )
+
+    @keyword
+    def sheet_should_not_contain_empty_rows(
+        self, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+
+        for row_index, row in enumerate(
+            sheet.iter_rows(values_only=True), start=1
+        ):
+            if all(cell is None or cell == "" for cell in row):
+                BuiltIn().fail(
+                    f"Expected sheet '{sheet_name}' to have no empty rows, but row {row_index} is empty."
+                )
+
+    @keyword
+    def cell_should_match_pattern(
+        self, cell_name: str, pattern: str, sheet_name: Optional[str] = None
+    ) -> None:
+        sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker(
+            {"cell_name": [cell_name, str], "pattern": [pattern, str]}
+        )
+
+        active_workbook = self.__get_active_workbook()
+        sheet = active_workbook[sheet_name]
+        actual_value = sheet[cell_name].value
+        match = re.match(pattern, str(actual_value) if actual_value is not None else "")
+
+        BuiltIn().should_be_true(
+            match is not None,
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to match pattern '{pattern}', but found '{actual_value}'.",
+        )
