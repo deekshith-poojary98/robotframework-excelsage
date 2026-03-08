@@ -48,6 +48,7 @@ INVALID_EXCEL_FILE_PATH = os.path.join(
     str(PROJECT_ROOT.parent), "data", "invalid_file.xlsx"
 )
 NEW_EXCEL_FILE_PATH = os.path.join(DATA_DIR, "new_excel.xlsx")
+ASSERTION_EXCEL_FILE_PATH = os.path.join(DATA_DIR, "assertion_test.xlsx")
 INVALID_SHEET_NAME = "invalid[]sheet"
 INVALID_CELL_ADDRESS = "AAAA1"
 INVALID_ROW_INDEX = 1012323486523
@@ -3606,3 +3607,183 @@ def test_remove_empty_rows_preserves_structure(setup_teardown):
             os.remove(test_file)
         if os.path.exists(output_file):
             os.remove(output_file)
+
+
+def test_cell_value_should_be_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.cell_value_should_be(cell_name="A1", expected_value="First Name")
+
+
+def test_cell_should_be_empty_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.cell_should_be_empty(cell_name="G1", sheet_name="Sheet1")
+
+
+def test_row_count_should_be_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.row_count_should_be(expected_count=51, sheet_name="Sheet1")
+
+
+def test_column_count_should_be_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.column_count_should_be(expected_count=8, sheet_name="Sheet1")
+
+
+def test_column_should_contain_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.column_should_contain(
+        column_name_or_letter="First Name",
+        expected_value="Lester",
+        sheet_name="Sheet1",
+    )
+
+
+def test_sheet_should_exist_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.sheet_should_exist(sheet_name="Sheet1")
+
+
+def test_workbook_should_contain_sheet_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.workbook_should_contain_sheet(sheet_name="Offset_table")
+
+
+def test_column_should_not_contain_duplicates_success(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Alice", 30], ["Bob", 40]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    exl.column_should_not_contain_duplicates(column_name_or_letter="Name")
+
+
+def test_column_should_not_contain_duplicates_failure(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Alice", 30], ["Alice", 40]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    with pytest.raises(AssertionError):
+        exl.column_should_not_contain_duplicates(column_name_or_letter="Name")
+
+
+def test_sheet_should_not_contain_empty_rows_success(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Alice", 30], ["Bob", 40]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    exl.sheet_should_not_contain_empty_rows()
+
+
+def test_sheet_should_not_contain_empty_rows_failure(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Alice", 30], [None, None], ["Bob", 40]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    with pytest.raises(AssertionError):
+        exl.sheet_should_not_contain_empty_rows()
+
+
+def test_cell_should_match_pattern_success(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.cell_should_match_pattern(cell_name="A2", pattern=r"^L.*", sheet_name="Sheet1")
+
+
+def test_cell_value_should_be_workbook_not_open(setup_teardown):
+    with pytest.raises(WorkbookNotOpenError):
+        exl.cell_value_should_be(cell_name="A1", expected_value="First Name")
+
+
+def test_cell_value_should_be_invalid_cell(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(ValueError):
+        exl.cell_value_should_be(cell_name=INVALID_CELL_ADDRESS, expected_value=None)
+
+
+def test_column_should_contain_invalid_column(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(ValueError):
+        exl.column_should_contain(
+            column_name_or_letter="NotAColumn",
+            expected_value="Lester",
+            sheet_name="Sheet1",
+        )
+
+
+def test_column_should_contain_empty_column_failure(setup_teardown):
+    sheet_data = [["Name", "Age"]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    with pytest.raises(AssertionError):
+        exl.column_should_contain(
+            column_name_or_letter="Name",
+            expected_value="Alice",
+        )
+
+
+def test_sheet_should_exist_failure(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(AssertionError):
+        exl.sheet_should_exist(sheet_name="MissingSheet")
+
+
+def test_column_should_not_contain_duplicates_invalid_column(setup_teardown):
+    sheet_data = [["Name", "Age"], ["Alice", 30]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    with pytest.raises(ValueError):
+        exl.column_should_not_contain_duplicates(column_name_or_letter="Missing")
+
+
+def test_cell_should_match_pattern_failure(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(AssertionError):
+        exl.cell_should_match_pattern(cell_name="A2", pattern=r"^Z.*", sheet_name="Sheet1")
+
+
+def test_cell_should_be_empty_with_empty_string(setup_teardown):
+    sheet_data = [["Name", "Age"], ["", 30]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    exl.cell_should_be_empty(cell_name="A2")
+
+
+def test_sheet_should_not_contain_empty_rows_with_empty_string_row(setup_teardown):
+    sheet_data = [["Name", "Age"], ["", ""], ["Bob", 40]]
+    exl.create_workbook(
+        workbook_name=ASSERTION_EXCEL_FILE_PATH,
+        overwrite_if_exists=True,
+        sheet_data=sheet_data,
+    )
+    with pytest.raises(AssertionError):
+        exl.sheet_should_not_contain_empty_rows()
+
+
+def test_cell_should_match_pattern_numeric_value(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    exl.cell_should_match_pattern(cell_name="H2", pattern=r"^\d+$", sheet_name="Sheet1")
+
+
+def test_column_should_contain_out_of_bounds_letter(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(ValueError):
+        exl.column_should_contain(
+            column_name_or_letter="ZZZ",
+            expected_value="Lester",
+            sheet_name="Sheet1",
+        )
