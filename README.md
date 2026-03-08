@@ -134,7 +134,12 @@ excel_sage.export_to_csv(filename="source.xlsx", sheet_name="Sheet1", output_fil
 #### Assertion Keywords
 ```py
 # Assert a cell value
-excel_sage.cell_value_should_be(cell_name="A1", expected_value="First Name", sheet_name="Sheet1")
+excel_sage.cell_value_should_be(
+    cell_name="A1",
+    expected_value="First Name",
+    sheet_name="Sheet1",
+    message="Expected header cell to match",
+)
 
 # Assert a column contains a value
 excel_sage.column_should_contain(column_name_or_letter="First Name", expected_value="Lester", sheet_name="Sheet1")
@@ -294,7 +299,7 @@ Validate Sheet Data
     Cell Value Should Be    cell_name=A1    expected_value=First Name    sheet_name=Sheet1
     Column Should Contain    column_name_or_letter=First Name    expected_value=Lester    sheet_name=Sheet1
     Row Count Should Be    expected_count=51    sheet_name=Sheet1
-    Sheet Should Not Contain Empty Rows    sheet_name=Sheet1
+    Sheet Should Not Contain Empty Rows    sheet_name=Sheet1    message=No blank rows allowed
     Cell Should Match Pattern    cell_name=H2    pattern=^\d+$    sheet_name=Sheet1
 ```
 
@@ -365,16 +370,16 @@ Find Duplicates
 - `compare_excels(self, source_excel, target_excel, source_excel_config, target_excel_config)` – Compares two Excel files.
 - `export_to_csv(self, filename, sheet_name, output_filename, overwrite_if_exists)` – Exports sheet data to a CSV file.
 - `get_column_headers(self, starting_cell, sheet_name)` – Fetches the column headers starting from the specified cell.
-- `cell_value_should_be(self, cell_name, expected_value, sheet_name)` – Asserts that a cell matches the expected value.
-- `cell_should_be_empty(self, cell_name, sheet_name)` – Asserts that a cell is empty.
-- `row_count_should_be(self, expected_count, sheet_name)` – Asserts the sheet row count.
-- `column_count_should_be(self, expected_count, sheet_name)` – Asserts the sheet column count.
-- `column_should_contain(self, column_name_or_letter, expected_value, sheet_name)` – Asserts a column contains a value.
-- `sheet_should_exist(self, sheet_name)` – Asserts a sheet exists in the workbook.
-- `workbook_should_contain_sheet(self, sheet_name)` – Asserts a sheet exists in the workbook.
-- `column_should_not_contain_duplicates(self, column_name_or_letter, sheet_name)` – Asserts no duplicate values in a column.
-- `sheet_should_not_contain_empty_rows(self, sheet_name)` – Asserts no empty rows exist.
-- `cell_should_match_pattern(self, cell_name, pattern, sheet_name)` – Asserts a cell matches a regex pattern.
+- `cell_value_should_be(self, cell_name, expected_value, sheet_name, message=None)` – Asserts that a cell matches the expected value.
+- `cell_should_be_empty(self, cell_name, sheet_name, message=None)` – Asserts that a cell is empty.
+- `row_count_should_be(self, expected_count, sheet_name, message=None)` – Asserts the sheet row count.
+- `column_count_should_be(self, expected_count, sheet_name, message=None)` – Asserts the sheet column count.
+- `column_should_contain(self, column_name_or_letter, expected_value, sheet_name, message=None)` – Asserts a column contains a value.
+- `sheet_should_exist(self, sheet_name, message=None)` – Asserts a sheet exists in the workbook.
+- `workbook_should_contain_sheet(self, sheet_name, message=None)` – Asserts a sheet exists in the workbook.
+- `column_should_not_contain_duplicates(self, column_name_or_letter, sheet_name, message=None)` – Asserts no duplicate values in a column.
+- `sheet_should_not_contain_empty_rows(self, sheet_name, message=None)` – Asserts no empty rows exist.
+- `cell_should_match_pattern(self, cell_name, pattern, sheet_name, message=None)` – Asserts a cell matches a regex pattern.
 
 ## License
 This project is licensed under the [Apache-2.0 License](https://github.com/Deekshith-07/robotframework-excelsage?tab=Apache-2.0-1-ov-file).

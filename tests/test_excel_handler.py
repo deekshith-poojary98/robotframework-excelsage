@@ -3614,6 +3614,17 @@ def test_cell_value_should_be_success(setup_teardown):
     exl.cell_value_should_be(cell_name="A1", expected_value="First Name")
 
 
+def test_cell_value_should_be_custom_message(setup_teardown):
+    exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
+    with pytest.raises(AssertionError) as excinfo:
+        exl.cell_value_should_be(
+            cell_name="A1",
+            expected_value="Wrong Value",
+            message="Custom failure message",
+        )
+    assert "Custom failure message" in str(excinfo.value)
+
+
 def test_cell_should_be_empty_success(setup_teardown):
     exl.open_workbook(workbook_name=EXCEL_FILE_PATH)
     exl.cell_should_be_empty(cell_name="G1", sheet_name="Sheet1")

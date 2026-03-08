@@ -2908,68 +2908,150 @@ class ExcelSage:
         cell_name: str,
         expected_value: Any,
         sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Cell Value Should Be`` keyword asserts that a specific cell matches the expected value.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Cell Value Should Be    cell_name=A1    expected_value=First Name    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"cell_name": [cell_name, str]})
+        self.__argument_type_checker(
+            {"cell_name": [cell_name, str], "message": [message, str, None]}
+        )
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
         actual_value = sheet[cell_name].value
 
+        default_message = (
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be '{expected_value}', but found '{actual_value}'."
+        )
         BuiltIn().should_be_equal(
             actual_value,
             expected_value,
-            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be '{expected_value}', but found '{actual_value}'.",
+            message or default_message,
         )
 
     @keyword
     def cell_should_be_empty(
-        self, cell_name: str, sheet_name: Optional[str] = None
+        self,
+        cell_name: str,
+        sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Cell Should Be Empty`` keyword asserts that a specific cell is empty (None or empty string).
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Cell Should Be Empty    cell_name=G1    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"cell_name": [cell_name, str]})
+        self.__argument_type_checker(
+            {"cell_name": [cell_name, str], "message": [message, str, None]}
+        )
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
         actual_value = sheet[cell_name].value
 
+        default_message = (
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be empty, but found '{actual_value}'."
+        )
         BuiltIn().should_be_true(
             actual_value is None or actual_value == "",
-            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to be empty, but found '{actual_value}'.",
+            message or default_message,
         )
 
     @keyword
     def row_count_should_be(
-        self, expected_count: int, sheet_name: Optional[str] = None
+        self,
+        expected_count: int,
+        sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Row Count Should Be`` keyword asserts that the sheet row count matches the expected value.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Row Count Should Be    expected_count=51    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"expected_count": [expected_count, int]})
+        self.__argument_type_checker(
+            {"expected_count": [expected_count, int], "message": [message, str, None]}
+        )
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
         actual_count = sheet.max_row
 
+        default_message = (
+            f"Expected {expected_count} rows in sheet '{sheet_name}', but found {actual_count}."
+        )
         BuiltIn().should_be_equal(
             actual_count,
             expected_count,
-            f"Expected {expected_count} rows in sheet '{sheet_name}', but found {actual_count}.",
+            message or default_message,
         )
 
     @keyword
     def column_count_should_be(
-        self, expected_count: int, sheet_name: Optional[str] = None
+        self,
+        expected_count: int,
+        sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Column Count Should Be`` keyword asserts that the sheet column count matches the expected value.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Column Count Should Be    expected_count=8    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
-        self.__argument_type_checker({"expected_count": [expected_count, int]})
+        self.__argument_type_checker(
+            {"expected_count": [expected_count, int], "message": [message, str, None]}
+        )
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
         actual_count = sheet.max_column
 
+        default_message = (
+            f"Expected {expected_count} columns in sheet '{sheet_name}', but found {actual_count}."
+        )
         BuiltIn().should_be_equal(
             actual_count,
             expected_count,
-            f"Expected {expected_count} columns in sheet '{sheet_name}', but found {actual_count}.",
+            message or default_message,
         )
 
     @keyword
@@ -2978,8 +3060,23 @@ class ExcelSage:
         column_name_or_letter: str,
         expected_value: Any,
         sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Column Should Contain`` keyword asserts that a column contains the expected value.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Column Should Contain    column_name_or_letter=First Name    expected_value=Lester    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"message": [message, str, None]})
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
@@ -2987,37 +3084,95 @@ class ExcelSage:
             sheet, column_name_or_letter
         )
 
+        default_message = (
+            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to contain '{expected_value}', but it did not."
+        )
         BuiltIn().should_contain(
             column_values,
             expected_value,
-            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to contain '{expected_value}', but it did not.",
+            message or default_message,
         )
 
     @keyword
-    def sheet_should_exist(self, sheet_name: str) -> None:
-        self.__argument_type_checker({"sheet_name": [sheet_name, str]})
+    def sheet_should_exist(self, sheet_name: str, message: Optional[str] = None) -> None:
+        """
+        The ``Sheet Should Exist`` keyword asserts that a sheet exists in the active workbook.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Sheet Should Exist    sheet_name=Sheet1
+        """
+        self.__argument_type_checker(
+            {"sheet_name": [sheet_name, str], "message": [message, str, None]}
+        )
         active_workbook = self.__get_active_workbook()
 
+        default_message = (
+            f"Expected sheet '{sheet_name}' to exist, but it was not found."
+        )
         BuiltIn().should_be_true(
             sheet_name in active_workbook.sheetnames,
-            f"Expected sheet '{sheet_name}' to exist, but it was not found.",
+            message or default_message,
         )
 
     @keyword
-    def workbook_should_contain_sheet(self, sheet_name: str) -> None:
-        self.__argument_type_checker({"sheet_name": [sheet_name, str]})
+    def workbook_should_contain_sheet(
+        self, sheet_name: str, message: Optional[str] = None
+    ) -> None:
+        """
+        The ``Workbook Should Contain Sheet`` keyword asserts that a sheet exists in the active workbook.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Workbook Should Contain Sheet    sheet_name=Offset_table
+        """
+        self.__argument_type_checker(
+            {"sheet_name": [sheet_name, str], "message": [message, str, None]}
+        )
         active_workbook = self.__get_active_workbook()
 
+        default_message = (
+            f"Expected workbook to contain sheet '{sheet_name}', but it was not found."
+        )
         BuiltIn().should_be_true(
             sheet_name in active_workbook.sheetnames,
-            f"Expected workbook to contain sheet '{sheet_name}', but it was not found.",
+            message or default_message,
         )
 
     @keyword
     def column_should_not_contain_duplicates(
-        self, column_name_or_letter: str, sheet_name: Optional[str] = None
+        self,
+        column_name_or_letter: str,
+        sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Column Should Not Contain Duplicates`` keyword asserts that a column has no duplicate values.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Column Should Not Contain Duplicates    column_name_or_letter=Name    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"message": [message, str, None]})
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
@@ -3025,16 +3180,33 @@ class ExcelSage:
             sheet, column_name_or_letter
         )
 
+        default_message = (
+            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to have no duplicates, but duplicates were found."
+        )
         BuiltIn().should_be_true(
             len(column_values) == len(set(column_values)),
-            f"Expected column '{column_name_or_letter}' in sheet '{sheet_name}' to have no duplicates, but duplicates were found.",
+            message or default_message,
         )
 
     @keyword
     def sheet_should_not_contain_empty_rows(
-        self, sheet_name: Optional[str] = None
+        self, sheet_name: Optional[str] = None, message: Optional[str] = None
     ) -> None:
+        """
+        The ``Sheet Should Not Contain Empty Rows`` keyword asserts that the sheet has no fully empty rows.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Sheet Should Not Contain Empty Rows    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
+        self.__argument_type_checker({"message": [message, str, None]})
 
         active_workbook = self.__get_active_workbook()
         sheet = active_workbook[sheet_name]
@@ -3043,17 +3215,42 @@ class ExcelSage:
             sheet.iter_rows(values_only=True), start=1
         ):
             if all(cell is None or cell == "" for cell in row):
-                BuiltIn().fail(
+                default_message = (
                     f"Expected sheet '{sheet_name}' to have no empty rows, but row {row_index} is empty."
                 )
+                if message:
+                    BuiltIn().fail(f"{message} (row {row_index})")
+                else:
+                    BuiltIn().fail(default_message)
 
     @keyword
     def cell_should_match_pattern(
-        self, cell_name: str, pattern: str, sheet_name: Optional[str] = None
+        self,
+        cell_name: str,
+        pattern: str,
+        sheet_name: Optional[str] = None,
+        message: Optional[str] = None,
     ) -> None:
+        """
+        The ``Cell Should Match Pattern`` keyword asserts that a cell value matches a regex pattern.
+
+        You can optionally pass a custom failure ``message``.
+
+        *Examples*
+        | ***** Settings *****
+        | Library    ExcelSage
+        |
+        | ***** Test Cases *****
+        | Example
+        |   Cell Should Match Pattern    cell_name=H2    pattern=^\\d+$    sheet_name=Sheet1
+        """
         sheet_name = self.__get_active_sheet_name(sheet_name)
         self.__argument_type_checker(
-            {"cell_name": [cell_name, str], "pattern": [pattern, str]}
+            {
+                "cell_name": [cell_name, str],
+                "pattern": [pattern, str],
+                "message": [message, str, None],
+            }
         )
 
         active_workbook = self.__get_active_workbook()
@@ -3061,7 +3258,10 @@ class ExcelSage:
         actual_value = sheet[cell_name].value
         match = re.match(pattern, str(actual_value) if actual_value is not None else "")
 
+        default_message = (
+            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to match pattern '{pattern}', but found '{actual_value}'."
+        )
         BuiltIn().should_be_true(
             match is not None,
-            f"Expected cell '{cell_name}' in sheet '{sheet_name}' to match pattern '{pattern}', but found '{actual_value}'.",
+            message or default_message,
         )
