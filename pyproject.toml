@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotframework-excelsage"
+version = "1.3.0"
+description = "A package for integrating Robot Framework with Excel using openpyxl and pandas"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Deekshith Poojary", email = "deekshithpoojary355@gmail.com" }]
+maintainers = [{ name = "Deekshith Poojary" }]
+keywords = [
+  "excel",
+  "testing",
+  "testautomation",
+  "robotframework",
+  "robotframework-excelsage",
+  "robotframework-excellibrary",
+  "robotframework-excellib",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Framework :: Robot Framework :: Library",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = [
+  "pyarrow",
+  "pandas>=2.2.0",
+  "openpyxl>=3.1.0",
+  "robotframework>=5.0.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/deekshith-poojary98/robotframework-excelsage"
+
+[tool.setuptools.packages.find]
+include = ["ExcelSage*"]
