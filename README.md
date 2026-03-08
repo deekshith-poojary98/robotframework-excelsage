@@ -18,6 +18,7 @@ ExcelSage is a Python-based library designed for interacting with Excel 2010 and
 - Cell and Sheet Operations: Read and write to specific cells, manage rows and columns, format cells, and fetch sheet data in various formats (list, dict, or pandas DataFrame).
 - Data Management: Sort, find, and replace values, search for duplicates, and merge data from multiple Excel files.
 - Security Features: Protect/unprotect sheets and workbooks with passwords.
+- Assertion Keywords: Validate cell values, row/column counts, sheet existence, and data integrity with built-in assertions.
 - Integration with Robot Framework: Easily use the library in Robot Framework for automated testing scenarios.
 
 ## Installation
@@ -125,6 +126,21 @@ excel_sage.unprotect_workbook(password="mypassword", unprotect_sheets=True)
 ```py
 # Export a sheet to CSV
 excel_sage.export_to_csv(filename="source.xlsx", sheet_name="Sheet1", output_filename="output.csv
+```
+
+#### Assertion Keywords
+```py
+# Assert a cell value
+excel_sage.cell_value_should_be(cell_name="A1", expected_value="First Name", sheet_name="Sheet1")
+
+# Assert a column contains a value
+excel_sage.column_should_contain(column_name_or_letter="First Name", expected_value="Lester", sheet_name="Sheet1")
+
+# Assert no empty rows
+excel_sage.sheet_should_not_contain_empty_rows(sheet_name="Sheet1")
+
+# Assert a cell matches a pattern
+excel_sage.cell_should_match_pattern(cell_name="H2", pattern=r"^\d+$", sheet_name="Sheet1")
 ```
 
 ## Robot Framework Usage
@@ -268,6 +284,17 @@ Export Sheet Data to CSV
     Export To CSV    filename=source.xlsx    sheet_name=Sheet1    output_filename=output.csv    overwrite_if_exists=True
 ```
 
+#### Assertion Keywords
+```robot
+*** Test Cases ***
+Validate Sheet Data
+    Cell Value Should Be    cell_name=A1    expected_value=First Name    sheet_name=Sheet1
+    Column Should Contain    column_name_or_letter=First Name    expected_value=Lester    sheet_name=Sheet1
+    Row Count Should Be    expected_count=51    sheet_name=Sheet1
+    Sheet Should Not Contain Empty Rows    sheet_name=Sheet1
+    Cell Should Match Pattern    cell_name=H2    pattern=^\d+$    sheet_name=Sheet1
+```
+
 #### Miscellaneous Features
 ```robot
 *** Test Cases ***
@@ -287,8 +314,11 @@ Find Duplicates
 
 ## API Reference
 #### Private Helper Methods
+- `__get_active_workbook(self)` – Fetches the active workbook instance.
+- `__get_active_workbook_name(self)` – Fetches the active workbook name.
 - `__get_active_sheet_name(self, sheet_name)` – Fetches the name of the active sheet.
 - `__argument_type_checker(self, arg_list)` – Validates the types of provided arguments.
+- `__get_column_values_by_name_or_letter(self, sheet, column_name_or_letter)` – Fetches column values by header or column letter.
 
 #### Public Methods
 - `open_workbook(self, workbook_name)` – Opens an existing Excel workbook.
@@ -300,6 +330,7 @@ Find Duplicates
 - `rename_sheet(self, old_name, new_name)` – Renames an existing sheet.
 - `get_cell_value(self, cell_name, sheet_name)` – Retrieves the value of a specified cell.
 - `close_workbook(self)` – Closes the active workbook.
+- `switch_workbook(self, alias)` – Switches the active workbook by alias.
 - `save_workbook(self)` – Saves the active workbook.
 - `set_active_sheet(self, sheet_name)` – Sets the active sheet.
 - `write_to_cell(self, cell_name, cell_value, sheet_name)` – Writes a value to a specific cell.
@@ -327,9 +358,20 @@ Find Duplicates
 - `unmerge_cells(self, cell_range, sheet_name)` – Unmerges a range of cells in the specified sheet.
 - `sort_column(self, column_name_or_letter, asc, starting_cell, output_format, sheet_name)` – Sorts a column based on values.
 - `find_duplicates(self, column_names_or_letters, output_format, starting_cell, sheet_name)` – Finds duplicate values in the specified columns.
+- `remove_empty_rows(self, output_filename, sheet_name, column_names_or_letters, overwrite_if_exists, starting_cell)` – Removes empty rows and writes to a new file.
 - `compare_excels(self, source_excel, target_excel, source_excel_config, target_excel_config)` – Compares two Excel files.
 - `export_to_csv(self, filename, sheet_name, output_filename, overwrite_if_exists)` – Exports sheet data to a CSV file.
 - `get_column_headers(self, starting_cell, sheet_name)` – Fetches the column headers starting from the specified cell.
+- `cell_value_should_be(self, cell_name, expected_value, sheet_name)` – Asserts that a cell matches the expected value.
+- `cell_should_be_empty(self, cell_name, sheet_name)` – Asserts that a cell is empty.
+- `row_count_should_be(self, expected_count, sheet_name)` – Asserts the sheet row count.
+- `column_count_should_be(self, expected_count, sheet_name)` – Asserts the sheet column count.
+- `column_should_contain(self, column_name_or_letter, expected_value, sheet_name)` – Asserts a column contains a value.
+- `sheet_should_exist(self, sheet_name)` – Asserts a sheet exists in the workbook.
+- `workbook_should_contain_sheet(self, sheet_name)` – Asserts a sheet exists in the workbook.
+- `column_should_not_contain_duplicates(self, column_name_or_letter, sheet_name)` – Asserts no duplicate values in a column.
+- `sheet_should_not_contain_empty_rows(self, sheet_name)` – Asserts no empty rows exist.
+- `cell_should_match_pattern(self, cell_name, pattern, sheet_name)` – Asserts a cell matches a regex pattern.
 
 ## License
 This project is licensed under the [Apache-2.0 License](https://github.com/Deekshith-07/robotframework-excelsage?tab=Apache-2.0-1-ov-file).
